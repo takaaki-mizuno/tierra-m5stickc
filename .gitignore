@@ -1,0 +1,8 @@
+
+# Editor
+.idea
+.vscode
+
+# OS Dependent files
+.DS_Store
+
