@@ -2,20 +2,10 @@
 // Created by Takaaki Mizuno on 2021/08/25.
 //
 
-#ifndef ARTIFICIAL_LIFE_VM_H
-#define ARTIFICIAL_LIFE_VM_H
+#ifndef CONCEPTUAL_VIRUS_VM_H
+#define CONCEPTUAL_VIRUS_VM_H
 
-struct cpuStruct {  /* structure for registers of virtual cpu */
-    int ax;  /* address register */
-    int bx;  /* address register */
-    int cx;  /* numerical register */
-    int dx;  /* numerical register */
-    char fl;  /* flag */
-    char sp;  /* stack pointer */
-    int stack[10];  /* stack */
-    int ip; /* instruction pointer */
-    int error;
-};
+#include "entity.h"
 
 enum errorType {
     NO_ERROR = 0,
@@ -23,6 +13,7 @@ enum errorType {
     STACK_UNDER_FLOW,
     EXECUTE_OVERFLOW,
     JUMP_TARGET_NOT_FOUND,
+    COPY_OVER_FLOW,
 };
 
 enum directionType {
@@ -36,7 +27,9 @@ const int TEMPLATE_SEARCH_RANGE = 300;
 class VM {
 private:
     char *soup;
+    Entity []*entities;
     int soupSize;
+    int nextPosition;
 public:
     VM(int size);
 
@@ -45,4 +38,4 @@ public:
     introduceFragment(char *fragment, int length);
 };
 
-#endif //ARTIFICIAL_LIFE_VM_H
+#endif //CONCEPTUAL_VIRUS_VM_H

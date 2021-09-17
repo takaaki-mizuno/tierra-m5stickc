@@ -1,5 +1,6 @@
 #include "vm.h"
-
+#include "process.h"
+#include "entity.h"
 
 VM::VM(int size) {
     soupSize = size;
@@ -7,52 +8,66 @@ VM::VM(int size) {
     for (int i = 0; i < size; i++) {
         soup[i] = 0;
     }
+    nextPosition = 0;
 }
 
 VM::~VM() {
-    if soup != null{
-                delete[] soup;
-        }
+    if (soup != null) {
+        delete[] soup;
+    }
 }
 
 void VM::introduceFragment(char *fragment, int length) {
 
 }
 
-void VM::Execute(int startPosition) {
-    int currentPosition = startPosition;
-    cpuStruct cpu;
-    cpuData.ax = 0;
-
+void VM::allocateMemory(int size, Process *process) {
+    if( nextPosition + size <= soupSize ){
+        
+    }
 }
 
-void VM::Push(int value, cpuStruct *cpu) {
-    if (cpu->sp >= 10) {
-        cpu->error = STACK_OVER_FLOW;
+void VM::Execute(Entity *entry) {
+    Process process;
+    process.ax = 0;
+    process.bx = 0;
+    process.cx = 0;
+    process.dx = 0;
+    process.startPoint = entry->startPoint;
+    process.size = entry->size;
+    process.ip = process.startPoint;
+    process.fl = 0;
+    process.sp = 0;
+    process.error = NO_ERROR;
+}
+
+void VM::Push(int value, Process *process) {
+    if (process->sp >= 10) {
+        process->error = STACK_OVER_FLOW;
         return;
     }
-    cpu->stack[cpu->sp++] = value;
+    process->stack[process->sp++] = value;
     return;
 }
 
-int VM::Pop(cpuStruct *cpu) {
-    if (cpu->sp <= 0 >) {
-        cpu->error = STACK_UNDER_FLOW;
+int VM::Pop(Process *process) {
+    if (process->sp <= 0 >) {
+        process->error = STACK_UNDER_FLOW;
         return;
     }
-    int val = cpu->stack[--cpu->sp];
-    cpu->stack[cpu->sp] = 0;
+    int val = process->stack[--process->sp];
+    process->stack[process->sp] = 0;
     return val;
 }
 
-bool VM::MatchPattern(char *pattern, int position, cpuStruct *cpu) {
+bool VM::MatchPattern(char *pattern, int position, Process *process) {
     return (pattern[0] == soup[position] &&
             pattern[1] == soup[position + 1] &&
             pattern[2] == soup[position + 2] &&
             pattern[3] == soup[position + 3])
 }
 
-int VM::FindTemplate(char *pattern, int position, directionType direction, cpuStruct *cpu) {
+int VM::FindTemplate(char *pattern, int position, directionType direction, Process *process) {
     int currentPosition = 0;
     int foundPosition = -1;
     int foundCount = -1;
@@ -64,7 +79,7 @@ int VM::FindTemplate(char *pattern, int position, directionType direction, cpuSt
                 currentPosition -= 4;
                 count += 4;
             } else {
-                if (MatchPattern(pattern, position, cpu)) {
+                if (MatchPattern(pattern, position, process)) {
                     foundPosition = currentPosition;
                     foundCount = count;
                     break;
@@ -84,7 +99,7 @@ int VM::FindTemplate(char *pattern, int position, directionType direction, cpuSt
                 currentPosition++;
                 count++;
             } else {
-                if (MatchPattern(pattern, position, cpu)) {
+                if (MatchPattern(pattern, position, process)) {
                     if (direction == NEAREST && foundCount >= 0) {
                         if ( && count < foundCount ){
                             foundPosition = currentPosition;
@@ -107,115 +122,115 @@ int VM::FindTemplate(char *pattern, int position, directionType direction, cpuSt
     return foundPosition;
 }
 
-int VM::Command_Nop(int position, cpuStruct *cpu) {
+int VM::Command_Nop(int position, Process *process) {
     return ++position;
 }
 
-int VM::Command_Or1(int position, cpuStruct *cpu) {
-    cpu->cx ^= 1;
+int VM::Command_Or1(int position, Process *process) {
+    process->cx ^= 1;
     return ++position;
 }
 
-int VM::Command_Shl(int position, cpuStruct *cpu) {
-    cpu->cx <<= 1;
+int VM::Command_Shl(int position, Process *process) {
+    process->cx <<= 1;
     return ++position;
 }
 
-int VM::Command_Zero(int position, cpuStruct *cpu) {
-    cpu->cx = 0;
+int VM::Command_Zero(int position, Process *process) {
+    process->cx = 0;
     return ++position;
 }
 
-int VM::Command_If_Cz(int position, cpuStruct *cpu) {
-    if (cpu->cx != 0) {
+int VM::Command_If_Cz(int position, Process *process) {
+    if (process->cx != 0) {
         position++;
     }
     return ++position;
 }
 
-int VM::Command_Sub_Ab(int position, cpuStruct *cpu) {
-    cpu->cx = cpu->ax - cpu->bx;
+int VM::Command_Sub_Ab(int position, Process *process) {
+    process->cx = process->ax - process->bx;
     return ++position;
 }
 
-int VM::Command_Sub_Ac(int position, cpuStruct *cpu) {
-    cpu->ax = cpu->ax - cpu->cx;
+int VM::Command_Sub_Ac(int position, Process *process) {
+    process->ax = process->ax - process->cx;
     return ++position;
 }
 
-int VM::Command_Inc_A(int position, cpuStruct *cpu) {
-    cpu->ax++;
+int VM::Command_Inc_A(int position, Process *process) {
+    process->ax++;
     return ++position;
 }
 
-int VM::Command_Inc_B(int position, cpuStruct *cpu) {
-    cpu->bx++;
+int VM::Command_Inc_B(int position, Process *process) {
+    process->bx++;
     return ++position;
 }
 
-int VM::Command_Dec_C(int position, cpuStruct *cpu) {
-    cpu->cx--;
+int VM::Command_Dec_C(int position, Process *process) {
+    process->cx--;
     return ++position;
 }
 
-int VM::Command_Inc_C(int position, cpuStruct *cpu) {
-    cpu->cx++;
+int VM::Command_Inc_C(int position, Process *process) {
+    process->cx++;
     return ++position;
 }
 
-int VM::Command_Push_Ax(int position, cpuStruct *cpu) {
-    Push(cpu->ax, cpu);
+int VM::Command_Push_Ax(int position, Process *process) {
+    Push(process->ax, process);
     return ++position;
 }
 
-int VM::Command_Push_Bx(int position, cpuStruct *cpu) {
-    Push(cpu->bx, cpu);
+int VM::Command_Push_Bx(int position, Process *process) {
+    Push(process->bx, process);
     return ++position;
 }
 
-int VM::Command_Push_Cx(int position, cpuStruct *cpu) {
-    Push(cpu->cx, cpu);
+int VM::Command_Push_Cx(int position, Process *process) {
+    Push(process->cx, process);
     return ++position;
 }
 
-int VM::Command_Push_Dx(int position, cpuStruct *cpu) {
-    Push(cpu->dx, cpu);
+int VM::Command_Push_Dx(int position, Process *process) {
+    Push(process->dx, process);
     return ++position;
 }
 
-int VM::Command_Pop_Ax(int position, cpuStruct *cpu) {
-    cpu->ax = Pop(cpu);
+int VM::Command_Pop_Ax(int position, Process *process) {
+    process->ax = Pop(process);
     return ++position;
 }
 
-int VM::Command_Pop_Bx(int position, cpuStruct *cpu) {
-    cpu->bx = Pop(cpu);
+int VM::Command_Pop_Bx(int position, Process *process) {
+    process->bx = Pop(process);
     return ++position;
 }
 
-int VM::Command_Pop_Cx(int position, cpuStruct *cpu) {
-    cpu->cx = Pop(cpu);
+int VM::Command_Pop_Cx(int position, Process *process) {
+    process->cx = Pop(process);
     return ++position;
 }
 
-int VM::Command_Pop_Dx(int position, cpuStruct *cpu) {
-    cpu->dx = Pop(cpu);
+int VM::Command_Pop_Dx(int position, Process *process) {
+    process->dx = Pop(process);
     return ++position;
 }
 
-int VM::Command_Jmp(int position, cpuStruct *cpu) {
+int VM::Command_Jmp(int position, Process *process) {
     char pattern[4];
     if (position + 4 >= soupSize) {
-        cpu->error = EXECUTE_OVERFLOW;
+        process->error = EXECUTE_OVERFLOW;
         return;
     }
     pattern[0] = soup[position + 1];
     pattern[1] = soup[position + 2];
     pattern[2] = soup[position + 3];
     pattern[3] = soup[position + 4];
-    foundPosition = FindTemplate(pattern, position, NEAREST, cpu);
+    foundPosition = FindTemplate(pattern, position, NEAREST, process);
     if (foundPosition == -1) {
-        cpu->error = JUMP_TARGET_NOT_FOUND;
+        process->error = JUMP_TARGET_NOT_FOUND;
         return;
     }
 
@@ -223,19 +238,19 @@ int VM::Command_Jmp(int position, cpuStruct *cpu) {
     return position;
 }
 
-int VM::Command_JmpB(int position, cpuStruct *cpu) {
+int VM::Command_JmpB(int position, Process *process) {
     char pattern[4];
     if (position + 4 >= soupSize) {
-        cpu->error = EXECUTE_OVERFLOW;
+        process->error = EXECUTE_OVERFLOW;
         return;
     }
     pattern[0] = soup[position + 1];
     pattern[1] = soup[position + 2];
     pattern[2] = soup[position + 3];
     pattern[3] = soup[position + 4];
-    foundPosition = FindTemplate(pattern, position, BACKWARD, cpu);
+    foundPosition = FindTemplate(pattern, position, BACKWARD, process);
     if (foundPosition == -1) {
-        cpu->error = JUMP_TARGET_NOT_FOUND;
+        process->error = JUMP_TARGET_NOT_FOUND;
         return;
     }
 
@@ -243,110 +258,164 @@ int VM::Command_JmpB(int position, cpuStruct *cpu) {
     return position;
 }
 
-int VM::Command_Call(int position, cpuStruct *cpu) {
+int VM::Command_Call(int position, Process *process) {
     char pattern[4];
     if (position + 4 >= soupSize) {
-        cpu->error = EXECUTE_OVERFLOW;
+        process->error = EXECUTE_OVERFLOW;
         return;
     }
     pattern[0] = soup[position + 1];
     pattern[1] = soup[position + 2];
     pattern[2] = soup[position + 3];
     pattern[3] = soup[position + 4];
-    foundPosition = FindTemplate(pattern, position, NEAREST, cpu);
+    foundPosition = FindTemplate(pattern, position, NEAREST, process);
     if (foundPosition == -1) {
-        cpu->error = JUMP_TARGET_NOT_FOUND;
+        process->error = JUMP_TARGET_NOT_FOUND;
         return;
     }
-    Push(position+1, cpu);
+    Push(position + 1, process);
     position = foundPosition;
     return position;
 }
 
-int VM::Command_Ret(int position, cpuStruct *cpu) {
-    position = Pop(cpu);
+int VM::Command_Ret(int position, Process *process) {
+    position = Pop(process);
     return position;
 }
 
-int VM::    Command_Mov_CD(int position, cpuStruct *cpu) {
-    cpu->dx = cpu->cx;
+int VM::Command_Mov_CD(int position, Process *process) {
+    process->dx = process->cx;
     return ++position;
 }
 
-int VM::Command_Mov_AB(int position, cpuStruct *cpu) {
-    cpu->bx = cpu->ax;
+// move ax to bx, bx=ax
+int VM::Command_Mov_AB(int position, Process *process) {
+    process->bx = process->ax;
     return ++position;
 }
 
-int VM::Command_Mov_IAB(int position, cpuStruct *cpu) {
-    cpu->bx = cpu->ax;
+// move instruction at [bx] to [ax], [ax]=[bx]
+int VM::Command_Mov_IAB(int position, Process *process) {
+    if (process->ax < process->startPoint || process->ax >= process->startPoint + process->size) {
+        process->error = COPY_OVER_FLOW;
+        return;
+    }
+    if (process->bx < process->daughterStartPoint || process->bx >= process->daughterStartPoint + process->daughterSize) {
+        process->error = COPY_OVER_FLOW;
+        return;
+    }
+    if (process->bx < 0 || process->ax < 0 || process->ax >= soupSize || process->bx >= soupSize) {
+        process->error = COPY_OVER_FLOW;
+        return;
+    }
+    soup[process->bx] = soup[process->ax];
     return ++position;
 }
 
-int VM::ExecuteCommand(int position, cpuStruct *cpu) {
+int VM::Command_Adr_(directionType direction, int position, Process *process) {
+    char pattern[4];
+    if (position + 4 >= soupSize) {
+        process->error = EXECUTE_OVERFLOW;
+        return;
+    }
+    pattern[0] = soup[position + 1];
+    pattern[1] = soup[position + 2];
+    pattern[2] = soup[position + 3];
+    pattern[3] = soup[position + 4];
+    process->ax = FindTemplate(pattern, position, direction, process);
+    return ++position;
+}
+
+// 	search template (nearest) address to ax
+int VM::Command_Adr(int position, Process *process) {
+    return Command_Adr_(NEAREST, position, process);
+}
+
+// search template (backward) address to ax
+int VM::Command_AdrB(int position, Process *process) {
+    return Command_Adr_(BACKWARD, position, process);
+}
+
+// search template (forward) address to ax
+int VM::Command_AdrF(int position, Process *process) {
+    return Command_Adr_(FORWARD, position, process);
+}
+
+// 	allocate memory, cx=size, return address in ax
+int VM::Command_Mal(int position, Process *process) {
+
+}
+
+int VM::Command_Divide(int position, Process *process) {
+
+}
+
+int VM::ExecuteCommand(int position, Process *process) {
     switch (soup[position]) {
         case 0x00: // nop_0
         case 0x01: // nop_1
-            return Command_Nop(position, cpu);
+            return Command_Nop(position, process);
             break;
         case 0x02: // or1
-            return Command_Or1(position, cpu);
+            return Command_Or1(position, process);
         case 0x03: // shl
-            return Command_Shl(position, cpu);
+            return Command_Shl(position, process);
         case 0x04: // zero
-            return Command_Shl(position, cpu);
+            return Command_Shl(position, process);
         case 0x05: // if_cz
-            return Command_If_Cz(position, cpu);
+            return Command_If_Cz(position, process);
         case 0x06: // sub_ab
-            return Command_Sub_Ab(position, cpu);
+            return Command_Sub_Ab(position, process);
         case 0x07: // sub_ab
-            return Command_Sub_Ac(position, cpu);
+            return Command_Sub_Ac(position, process);
         case 0x08:
-            return Command_Inc_A(position, cpu);
+            return Command_Inc_A(position, process);
         case 0x09:
-            return Command_Inc_B(position, cpu);
+            return Command_Inc_B(position, process);
         case 0x0a:
-            return Command_Dec_C(position, cpu);
+            return Command_Dec_C(position, process);
         case 0x0b:
-            return Command_Inc_C(position, cpu);
+            return Command_Inc_C(position, process);
         case 0x0c:
-            return Command_Push_Ax(position, cpu);
+            return Command_Push_Ax(position, process);
         case 0x0d:
-            return Command_Push_Bx(position, cpu);
+            return Command_Push_Bx(position, process);
         case 0x0e:
-            return Command_Push_Cx(position, cpu);
+            return Command_Push_Cx(position, process);
         case 0x0f:
-            return Command_Push_Dx(position, cpu);
+            return Command_Push_Dx(position, process);
         case 0x10:
-            return Command_Pop_Ax(position, cpu);
+            return Command_Pop_Ax(position, process);
         case 0x11:
-            return Command_Pop_Bx(position, cpu);
+            return Command_Pop_Bx(position, process);
         case 0x12:
-            return Command_Pop_Cx(position, cpu);
+            return Command_Pop_Cx(position, process);
         case 0x13:
-            return Command_Pop_Dx(position, cpu);
+            return Command_Pop_Dx(position, process);
         case 0x14:
-            return Command_Jmp(position, cpu);
-            break;
+            return Command_Jmp(position, process);
         case 0x15:
-            return Command_JmpB(position, cpu);
-            break;
+            return Command_JmpB(position, process);
         case 0x16:
-            return Command_Call(position, cpu);
+            return Command_Call(position, process);
         case 0x17:
-            return Command_Ret(position, cpu);
+            return Command_Ret(position, process);
         case 0x18:
-            return Command_Mov_CD(position, cpu);
+            return Command_Mov_CD(position, process);
         case 0x19:
-            return Command_Mov_AB(position, cpu);
+            return Command_Mov_AB(position, process);
         case 0x1a:
-            mov_iab();	break; //
-            case 0x1b: adr();		break; //
-            case 0x1c: adrb();		break; //
-            case 0x1d: adrf();		break; //
-            case 0x1e: mal();		break; //
-            case 0x1f: divide();	break; //
-
-
+            return Command_Mov_IAB(position, process);
+        case 0x1b:
+            return Command_Adr(position, process);
+        case 0x1c:
+            return Command_AdrB(position, process);
+        case 0x1d:
+            return Command_AdrF(position, process);
+        case 0x1e:
+            return Command_Mal(position, process);
+        case 0x1f:
+            divide();
+            break; //
     }
 }
