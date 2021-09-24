@@ -13,6 +13,7 @@ public:
     ~Entity();
     int startPoint;
     int size;
+    Entity *next;
 };
 
 

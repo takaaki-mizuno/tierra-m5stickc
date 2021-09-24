@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include "vm.h"
 #include "process.h"
 #include "entity.h"
@@ -12,7 +13,7 @@ VM::VM(int size) {
 }
 
 VM::~VM() {
-    if (soup != null) {
+    if (soup != NULL) {
         delete[] soup;
     }
 }
@@ -23,12 +24,12 @@ void VM::introduceFragment(char *fragment, int length) {
 
 void VM::allocateMemory(int size, Process *process) {
     if( nextPosition + size <= soupSize ){
-        
+
     }
 }
 
 void VM::Execute(Entity *entry) {
-    Process process;
+    Process process = Process(entry->startPoint, entry->size);
     process.ax = 0;
     process.bx = 0;
     process.cx = 0;
@@ -51,9 +52,9 @@ void VM::Push(int value, Process *process) {
 }
 
 int VM::Pop(Process *process) {
-    if (process->sp <= 0 >) {
+    if (process->sp <= 0) {
         process->error = STACK_UNDER_FLOW;
-        return;
+        return 0;
     }
     int val = process->stack[--process->sp];
     process->stack[process->sp] = 0;
@@ -64,7 +65,7 @@ bool VM::MatchPattern(char *pattern, int position, Process *process) {
     return (pattern[0] == soup[position] &&
             pattern[1] == soup[position + 1] &&
             pattern[2] == soup[position + 2] &&
-            pattern[3] == soup[position + 3])
+            pattern[3] == soup[position + 3]);
 }
 
 int VM::FindTemplate(char *pattern, int position, directionType direction, Process *process) {
@@ -101,7 +102,7 @@ int VM::FindTemplate(char *pattern, int position, directionType direction, Proce
             } else {
                 if (MatchPattern(pattern, position, process)) {
                     if (direction == NEAREST && foundCount >= 0) {
-                        if ( && count < foundCount ){
+                        if ( count < foundCount ){
                             foundPosition = currentPosition;
                             foundCount = count;
                         }
@@ -222,16 +223,16 @@ int VM::Command_Jmp(int position, Process *process) {
     char pattern[4];
     if (position + 4 >= soupSize) {
         process->error = EXECUTE_OVERFLOW;
-        return;
+        return 0;
     }
     pattern[0] = soup[position + 1];
     pattern[1] = soup[position + 2];
     pattern[2] = soup[position + 3];
     pattern[3] = soup[position + 4];
-    foundPosition = FindTemplate(pattern, position, NEAREST, process);
+    int foundPosition = FindTemplate(pattern, position, NEAREST, process);
     if (foundPosition == -1) {
         process->error = JUMP_TARGET_NOT_FOUND;
-        return;
+        return 0;
     }
 
     position = foundPosition;
@@ -242,16 +243,16 @@ int VM::Command_JmpB(int position, Process *process) {
     char pattern[4];
     if (position + 4 >= soupSize) {
         process->error = EXECUTE_OVERFLOW;
-        return;
+        return 0;
     }
     pattern[0] = soup[position + 1];
     pattern[1] = soup[position + 2];
     pattern[2] = soup[position + 3];
     pattern[3] = soup[position + 4];
-    foundPosition = FindTemplate(pattern, position, BACKWARD, process);
+    int foundPosition = FindTemplate(pattern, position, BACKWARD, process);
     if (foundPosition == -1) {
         process->error = JUMP_TARGET_NOT_FOUND;
-        return;
+        return 0;
     }
 
     position = foundPosition;
@@ -262,16 +263,16 @@ int VM::Command_Call(int position, Process *process) {
     char pattern[4];
     if (position + 4 >= soupSize) {
         process->error = EXECUTE_OVERFLOW;
-        return;
+        return 0;
     }
     pattern[0] = soup[position + 1];
     pattern[1] = soup[position + 2];
     pattern[2] = soup[position + 3];
     pattern[3] = soup[position + 4];
-    foundPosition = FindTemplate(pattern, position, NEAREST, process);
+    int foundPosition = FindTemplate(pattern, position, NEAREST, process);
     if (foundPosition == -1) {
         process->error = JUMP_TARGET_NOT_FOUND;
-        return;
+        return 0;
     }
     Push(position + 1, process);
     position = foundPosition;
@@ -298,15 +299,15 @@ int VM::Command_Mov_AB(int position, Process *process) {
 int VM::Command_Mov_IAB(int position, Process *process) {
     if (process->ax < process->startPoint || process->ax >= process->startPoint + process->size) {
         process->error = COPY_OVER_FLOW;
-        return;
+        return 0;
     }
     if (process->bx < process->daughterStartPoint || process->bx >= process->daughterStartPoint + process->daughterSize) {
         process->error = COPY_OVER_FLOW;
-        return;
+        return 0;
     }
     if (process->bx < 0 || process->ax < 0 || process->ax >= soupSize || process->bx >= soupSize) {
         process->error = COPY_OVER_FLOW;
-        return;
+        return 0;
     }
     soup[process->bx] = soup[process->ax];
     return ++position;
@@ -316,7 +317,7 @@ int VM::Command_Adr_(directionType direction, int position, Process *process) {
     char pattern[4];
     if (position + 4 >= soupSize) {
         process->error = EXECUTE_OVERFLOW;
-        return;
+        return 0;
     }
     pattern[0] = soup[position + 1];
     pattern[1] = soup[position + 2];
@@ -343,11 +344,13 @@ int VM::Command_AdrF(int position, Process *process) {
 
 // 	allocate memory, cx=size, return address in ax
 int VM::Command_Mal(int position, Process *process) {
-
+    // [TODO]
+    return 0;
 }
 
 int VM::Command_Divide(int position, Process *process) {
-
+    // [TODO]
+    return 0;
 }
 
 int VM::ExecuteCommand(int position, Process *process) {
@@ -355,7 +358,6 @@ int VM::ExecuteCommand(int position, Process *process) {
         case 0x00: // nop_0
         case 0x01: // nop_1
             return Command_Nop(position, process);
-            break;
         case 0x02: // or1
             return Command_Or1(position, process);
         case 0x03: // shl
@@ -415,7 +417,7 @@ int VM::ExecuteCommand(int position, Process *process) {
         case 0x1e:
             return Command_Mal(position, process);
         case 0x1f:
-            divide();
-            break; //
+            return Command_Divide(position, process);
     }
+    return Command_Nop(position, process);
 }

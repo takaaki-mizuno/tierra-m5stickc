@@ -9,7 +9,5 @@ Entity::Entity(int startPoint, int size) {
     this->size = size;
 }
 
-Entity::Entity(int startPoint, int size) {
-    this->startPoint = startPoint;
-    this->size = size;
+Entity::~Entity() {
 }

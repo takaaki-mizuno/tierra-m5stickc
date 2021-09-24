@@ -4,7 +4,7 @@
 
 // wifiの設定
 const char *ssid = "Buffalo-G-EFFE"; // WiFiのSSID
-const char *password = "7ufhxfi4akvnd"; // WiFiのパスワード
+const char *password = ""; // WiFiのパスワード
 
 WebServer server(80);
 
