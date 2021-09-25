@@ -15,6 +15,8 @@ enum errorType {
     EXECUTE_OVERFLOW,
     JUMP_TARGET_NOT_FOUND,
     COPY_OVER_FLOW,
+    UNKNOWN_CODE,
+    COMPLETE
 };
 
 enum directionType {
@@ -25,55 +27,60 @@ enum directionType {
 
 const int TEMPLATE_SEARCH_RANGE = 300;
 
+const int SOUP_SIZE = 10000;
+
 class VM {
 private:
-    char *soup;
+    char soup[SOUP_SIZE];
     Entity *entities;
     int soupSize;
     int nextPosition;
+    Process process;
 public:
-    VM(int size);
+    VM();
     ~VM();
-    void introduceFragment(char *fragment, int length);
-    void allocateMemory(int size, Process *process);
-    void Execute(Entity *entry);
-    void Push(int value, Process *process);
-    int Pop(Process *process);
-    bool MatchPattern(char *pattern, int position, Process *process);
-    int FindTemplate(char *pattern, int position, directionType direction, Process *process);
-    int Command_Nop(int position, Process *process);
-    int Command_Or1(int position, Process *process);
-    int Command_Shl(int position, Process *process);
-    int Command_Zero(int position, Process *process);
-    int Command_If_Cz(int position, Process *process);
-    int Command_Sub_Ab(int position, Process *process);
-    int Command_Sub_Ac(int position, Process *process);
-    int Command_Inc_A(int position, Process *process);
-    int Command_Inc_B(int position, Process *process);
-    int Command_Dec_C(int position, Process *process);
-    int Command_Inc_C(int position, Process *process);
-    int Command_Push_Ax(int position, Process *process);
-    int Command_Push_Bx(int position, Process *process);
-    int Command_Push_Cx(int position, Process *process);
-    int Command_Push_Dx(int position, Process *process);
-    int Command_Pop_Ax(int position, Process *process);
-    int Command_Pop_Bx(int position, Process *process);
-    int Command_Pop_Cx(int position, Process *process);
-    int Command_Pop_Dx(int position, Process *process);
-    int Command_Jmp(int position, Process *process);
-    int Command_JmpB(int position, Process *process);
-    int Command_Call(int position, Process *process);
-    int Command_Ret(int position, Process *process);
-    int Command_Mov_CD(int position, Process *process);
-    int Command_Mov_AB(int position, Process *process);
-    int Command_Mov_IAB(int position, Process *process);
-    int Command_Adr_(directionType direction, int position, Process *process);
-    int Command_Adr(int position, Process *process);
-    int Command_AdrB(int position, Process *process);
-    int Command_AdrF(int position, Process *process);
-    int Command_Mal(int position, Process *process);
-    int Command_Divide(int position, Process *process);
-    int ExecuteCommand(int position, Process *process);
+    void CleanEntities();
+    void CopyCreature(char *source, char *destination, int length);
+    Entity *GetEntity(int size);
+    int AllocateMemory(int size);
+    int Execute(Entity *entry);
+    void Push(int value);
+    int Pop();
+    bool MatchPattern(char *pattern, int position);
+    int FindTemplate(char *pattern, int position, directionType direction);
+    int Command_Nop(int position);
+    int Command_Or1(int position);
+    int Command_Shl(int position);
+    int Command_Zero(int position);
+    int Command_If_Cz(int position);
+    int Command_Sub_Ab(int position);
+    int Command_Sub_Ac(int position);
+    int Command_Inc_A(int position);
+    int Command_Inc_B(int position);
+    int Command_Dec_C(int position);
+    int Command_Inc_C(int position);
+    int Command_Push_Ax(int position);
+    int Command_Push_Bx(int position);
+    int Command_Push_Cx(int position);
+    int Command_Push_Dx(int position);
+    int Command_Pop_Ax(int position);
+    int Command_Pop_Bx(int position);
+    int Command_Pop_Cx(int position);
+    int Command_Pop_Dx(int position);
+    int Command_Jmp(int position);
+    int Command_JmpB(int position);
+    int Command_Call(int position);
+    int Command_Ret(int position);
+    int Command_Mov_CD(int position);
+    int Command_Mov_AB(int position);
+    int Command_Mov_IAB(int position);
+    int Command_Adr_(directionType direction, int position);
+    int Command_Adr(int position);
+    int Command_AdrB(int position);
+    int Command_AdrF(int position);
+    int Command_Mal(int position);
+    int Command_Divide(int position);
+    int ExecuteCommand(int position);
 };
 
 #endif //CONCEPTUAL_VIRUS_VM_H

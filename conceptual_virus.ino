@@ -1,14 +1,14 @@
 #include <M5StickC.h>
 #include <WiFi.h>
 #include <WebServer.h>
+#include "vm.h"
 
 // wifiの設定
 const char *ssid = "Buffalo-G-EFFE"; // WiFiのSSID
 const char *password = ""; // WiFiのパスワード
 
 WebServer server(80);
-
-const int soupSize = 1000;
+VM vm = VM();
 
 void setup() {
     M5.begin();
@@ -67,11 +67,5 @@ void handleNotFound() {
 // ----------
 
 void setupLife() {
-    cleanSoup();
-}
 
-void cleanSoup(){
-    for( int i=0; i<soupSize; i++){
-        soup[i] = 0;
-    }
 }

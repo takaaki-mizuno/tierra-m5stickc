@@ -6,7 +6,6 @@
 #ifndef CONCEPTUAL_VIRUS_ENTITY_H
 #define CONCEPTUAL_VIRUS_ENTITY_H
 
-
 class Entity {
 public:
     Entity(int startPoint, int size);
@@ -15,6 +14,5 @@ public:
     int size;
     Entity *next;
 };
-
 
 #endif //CONCEPTUAL_VIRUS_ENTITY_H

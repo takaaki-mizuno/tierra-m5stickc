@@ -5,11 +5,7 @@
 #ifndef CONCEPTUAL_VIRUS_PROCESS_H
 #define CONCEPTUAL_VIRUS_PROCESS_H
 
-
-class Process {
-public:
-    Process(int startPoint, int size);
-    ~Process();
+struct _process {
     int ax;  /* address register */
     int bx;  /* address register */
     int cx;  /* numerical register */
@@ -24,6 +20,8 @@ public:
     int daughterStartPoint;
     int daughterSize;
 };
+
+typedef _process Process;
 
 
 #endif //CONCEPTUAL_VIRUS_PROCESS_H
