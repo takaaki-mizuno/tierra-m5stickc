@@ -4,19 +4,25 @@
 #include "vm.h"
 
 // wifiの設定
-const char *ssid = "Buffalo-G-EFFE"; // WiFiのSSID
+const char *ssid = ""; // WiFiのSSID
 const char *password = ""; // WiFiのパスワード
 
 WebServer server(80);
-VM vm = VM();
+VM* vm;
 
 void setup() {
     M5.begin();
     M5.Lcd.setRotation(1);
     M5.Axp.ScreenBreath(9);
     M5.Lcd.fillScreen(BLACK);
+
+    Serial.begin(9600);
+    randomSeed(analogRead(0));
+    long randNumber = random(100000000);
+
+    vm = new VM(randNumber);
+
     setupWifi();
-    setupLife();
     setupHttpServer();
 }
 
@@ -64,8 +70,3 @@ void handleNotFound() {
     server.send(404, "text/plain", "File Not Found\n\n");
 }
 
-// ----------
-
-void setupLife() {
-
-}

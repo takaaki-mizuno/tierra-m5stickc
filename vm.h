@@ -36,13 +36,16 @@ private:
     int soupSize;
     int nextPosition;
     Process process;
+    char *id;
 public:
-    VM();
+    VM(long seed);
     ~VM();
+    void CreateID(long seed);
     void CleanEntities();
     void CopyCreature(char *source, char *destination, int length);
     Entity *GetEntity(int size);
     int AllocateMemory(int size);
+    void OneLifeCycle();
     int Execute(Entity *entry);
     void Push(int value);
     int Pop();

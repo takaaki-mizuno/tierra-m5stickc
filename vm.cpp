@@ -3,18 +3,29 @@
 #include "process.h"
 #include "entity.h"
 #include "ancestor.h"
+#include "MD5.h"
 
-VM::VM() {
+VM::VM(long seed) {
     for (int i = 0; i < SOUP_SIZE; i++) {
         soup[i] = 0;
     }
     nextPosition = 0;
     entities = GetEntity(sizeof(ancestorData));
     CopyCreature(ancestorData, soup + entities->startPoint, sizeof(ancestorData));
+    CreateID(seed);
 }
 
 VM::~VM() {
     CleanEntities();
+}
+
+void VM::CreateID(long seed) {
+    char buf[60];
+    sprintf(buf, "creature%d", seed );
+    MD5 generator = MD5();
+    unsigned char *hash = generator.make_hash(buf, 60);
+    id = MD5::make_digest(hash, 16);
+    free(hash);
 }
 
 void VM::CleanEntities() {
@@ -24,6 +35,7 @@ void VM::CleanEntities() {
         delete entity;
         entity = nextEntity;
     }
+    free(id);
 }
 
 void VM::CopyCreature(char *source, char *destination, int length) {
@@ -47,6 +59,26 @@ int VM::AllocateMemory(int size) {
     // [TODO] Purge
 
     return 0;
+}
+
+void VM::OneLifeCycle() {
+    Entity *entity = entities;
+    Entity *previousEntity = NULL;
+    while (entity != NULL) {
+        Entity *nextEntity = entity->next;
+        int error = Execute(entity);
+        if( error == COMPLETE ){
+            previousEntity = entity;
+        }else{
+            delete entity;
+            if( previousEntity == NULL ){
+                entities = nextEntity;
+            }else{
+                previousEntity->next = nextEntity;
+            }
+        }
+        entity = nextEntity;
+    }
 }
 
 int VM::Execute(Entity *entry) {
@@ -370,13 +402,16 @@ int VM::Command_AdrF(int position) {
 
 // 	allocate memory, cx=size, return address in ax
 int VM::Command_Mal(int position) {
-    // [TODO]
-    return 0;
+    process.ax = AllocateMemory(process.cx);
+    process.daughterSize = process.cx;
+    process.daughterStartPoint = process.ax;
+    return ++position;
 }
 
 int VM::Command_Divide(int position) {
-    // [TODO]
-    return 0;
+
+    process.error = COMPLETE;
+    return ++position;
 }
 
 int VM::ExecuteCommand(int position) {
