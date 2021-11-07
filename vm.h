@@ -16,7 +16,10 @@ enum errorType {
     EXECUTE_OVERFLOW,
     JUMP_TARGET_NOT_FOUND,
     COPY_OVER_FLOW,
+    CAN_NOT_MEMORY_ALLOCATION,
     UNKNOWN_CODE,
+    NOT_PROCEED,
+    TOO_MANY_STEP,
     COMPLETE
 };
 
@@ -38,9 +41,11 @@ private:
     int nextPosition;
     Process process;
     char *id;
+    bool crashed;
 public:
     VM(long seed);
     ~VM();
+    bool isCrashed();
     int GetStatus(Status statusList[], int max);
     void CreateID(long seed);
     void CleanEntities();

@@ -11,12 +11,24 @@ VM::VM(long seed) {
     }
     nextPosition = 0;
     entities = GetEntity(sizeof(ancestorData));
+    if( entities == NULL ){
+        crashed = true;
+        return;
+    }
+    crashed = false;
     CopyCreature(ancestorData, soup + entities->startPoint, sizeof(ancestorData));
     CreateID(seed);
+    Serial.print("ID: ");
+    Serial.print(id);
+    Serial.print("\n");
 }
 
 VM::~VM() {
     CleanEntities();
+}
+
+bool VM::isCrashed() {
+    return crashed;
 }
 
 int VM::GetStatus(Status statusList[], int max) {
@@ -68,6 +80,9 @@ void VM::CopyCreature(char *source, char *destination, int length) {
 
 Entity *VM::GetEntity(int size) {
     int allocatedPosition = AllocateMemory(size);
+    if( allocatedPosition == -1 ){
+        return NULL;
+    }
     Entity *entity = new Entity(allocatedPosition, size);
     return entity;
 }
@@ -80,10 +95,16 @@ int VM::AllocateMemory(int size) {
     }
     // [TODO] Purge
 
-    return 0;
+    return -1;
 }
 
 void VM::OneLifeCycle() {
+    if( crashed ){
+        Serial.print("Process has been crashed\n");
+        return;
+    } else {
+        Serial.print("Proceed\n");
+    }
     Entity *entity = entities;
     Entity *previousEntity = NULL;
     while (entity != NULL) {
@@ -91,7 +112,9 @@ void VM::OneLifeCycle() {
         int error = Execute(entity);
         if( error == COMPLETE ){
             previousEntity = entity;
+            Serial.print("Process has been completed\n");
         }else{
+            Serial.print("Process has been crashed\n");
             delete entity;
             if( previousEntity == NULL ){
                 entities = nextEntity;
@@ -115,8 +138,41 @@ int VM::Execute(Entity *entry) {
     process.sp = 0;
     process.error = NO_ERROR;
     int position = process.startPoint;
+    int process_step_count = 0;
+
     while(process.error == NO_ERROR) {
+
+        Serial.print("Debug: ----------\n");
+        Serial.print("AX: ");
+        Serial.print(process.ax);
+        Serial.print(" BX: ");
+        Serial.print(process.bx);
+        Serial.print(" CX: ");
+        Serial.print(process.cx);
+        Serial.print(" DX: ");
+        Serial.print(process.dx);
+        int currentPosition = position;
+        Serial.print(" Step:");
+        Serial.print(currentPosition);
+        int currentCommand = (int)(soup[position]);
+        Serial.print(" Command:");
+        Serial.print(currentCommand, HEX);
+        Serial.print("\n");
+
         position = ExecuteCommand(position);
+        if( position == currentPosition && process.error == NO_ERROR ){
+            int command = (int)(soup[position]);
+            Serial.print(command, HEX);
+            Serial.print(":Command not proceed");
+            process.error = NOT_PROCEED;
+        }
+
+        process_step_count++;
+        if( process_step_count > 5000 ){
+            process.error = TOO_MANY_STEP;
+            Serial.print("Too Many Step");
+        }
+
     }
     return process.error;
 }
@@ -147,19 +203,35 @@ bool VM::MatchPattern(char *pattern, int position) {
             pattern[3] == soup[position + 3]);
 }
 
-int VM::FindTemplate(char *pattern, int position, directionType direction) {
+int VM::FindTemplate(char *originalPattern, int position, directionType direction) {
     int currentPosition = 0;
     int foundPosition = -1;
     int foundCount = -1;
     int count = 0;
+
+    char pattern[4];
+    pattern[0] = originalPattern[0] ^ 1;
+    pattern[1] = originalPattern[1] ^ 1;
+    pattern[2] = originalPattern[2] ^ 1;
+    pattern[3] = originalPattern[3] ^ 1;
+
+    /*
+    Serial.print("\nFind: ");
+    Serial.print((int)pattern[0]);
+    Serial.print((int)pattern[1]);
+    Serial.print((int)pattern[2]);
+    Serial.print((int)pattern[3]);
+    Serial.print("\n");
+    */
+
     if (direction == BACKWARD || direction == NEAREST) {
         currentPosition = position;
         while (1) {
-            if (soup[position] != 0x00 && soup[position] != 0x01) {
+            if (soup[currentPosition] != 0x00 && soup[currentPosition] != 0x01) {
                 currentPosition -= 4;
                 count += 4;
             } else {
-                if (MatchPattern(pattern, position)) {
+                if (MatchPattern(pattern, currentPosition)) {
                     foundPosition = currentPosition;
                     foundCount = count;
                     break;
@@ -175,11 +247,11 @@ int VM::FindTemplate(char *pattern, int position, directionType direction) {
     if (direction == FORWARD || direction == NEAREST) {
         currentPosition = position;
         while (1) {
-            if (soup[position] != 0x00 && soup[position] != 0x01) {
+            if (soup[currentPosition] != 0x00 && soup[currentPosition] != 0x01) {
                 currentPosition++;
                 count++;
             } else {
-                if (MatchPattern(pattern, position)) {
+                if (MatchPattern(pattern, currentPosition)) {
                     if (direction == NEAREST && foundCount >= 0) {
                         if (count < foundCount) {
                             foundPosition = currentPosition;
@@ -199,6 +271,17 @@ int VM::FindTemplate(char *pattern, int position, directionType direction) {
             }
         }
     }
+
+    if( foundPosition >= 0){
+        foundPosition += 4;
+    }
+
+    /*
+    Serial.print("Result: ");
+    Serial.print(foundPosition);
+    Serial.print("\n");
+    */
+
     return foundPosition;
 }
 
@@ -376,12 +459,13 @@ int VM::Command_Mov_AB(int position) {
 
 // move instruction at [bx] to [ax], [ax]=[bx]
 int VM::Command_Mov_IAB(int position) {
-    if (process.ax < process.startPoint || process.ax >= process.startPoint + process.size) {
+
+    if (process.ax < process.daughterStartPoint || process.ax >= process.daughterStartPoint + process.daughterSize) {
         process.error = COPY_OVER_FLOW;
         return 0;
     }
-    if (process.bx < process.daughterStartPoint ||
-        process.bx >= process.daughterStartPoint + process.daughterSize) {
+    if (process.bx < process.startPoint ||
+        process.bx >= process.startPoint + process.size) {
         process.error = COPY_OVER_FLOW;
         return 0;
     }
@@ -389,7 +473,7 @@ int VM::Command_Mov_IAB(int position) {
         process.error = COPY_OVER_FLOW;
         return 0;
     }
-    soup[process.bx] = soup[process.ax];
+    soup[process.ax] = soup[process.bx];
     return ++position;
 }
 
@@ -403,7 +487,9 @@ int VM::Command_Adr_(directionType direction, int position) {
     pattern[1] = soup[position + 2];
     pattern[2] = soup[position + 3];
     pattern[3] = soup[position + 4];
+
     process.ax = FindTemplate(pattern, position, direction);
+
     return ++position;
 }
 
@@ -425,6 +511,17 @@ int VM::Command_AdrF(int position) {
 // 	allocate memory, cx=size, return address in ax
 int VM::Command_Mal(int position) {
     process.ax = AllocateMemory(process.cx);
+    if( process.ax == -1 ){
+        process.error = CAN_NOT_MEMORY_ALLOCATION;
+        return ++position;
+    }
+    Serial.print("Allocate daughter memory");
+    Serial.print("Position:");
+    Serial.print(process.ax);
+    Serial.print("\nsize:");
+    Serial.print(process.cx);
+    Serial.print("\n");
+
     process.daughterSize = process.cx;
     process.daughterStartPoint = process.ax;
     return ++position;

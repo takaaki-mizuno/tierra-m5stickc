@@ -14,11 +14,16 @@ WebServer server(80);
 VM* vm;
 DashboardClient* client;
 
+unsigned long previousExecution, interval;
+
+
 void setup() {
     M5.begin();
     M5.Lcd.setRotation(1);
     M5.Axp.ScreenBreath(9);
     M5.Lcd.fillScreen(BLACK);
+
+    interval = 1000 * 60; // 1 mi
 
     Serial.begin(9600);
     randomSeed(analogRead(0));
@@ -33,6 +38,13 @@ void setup() {
 
 void loop() {
     server.handleClient();
+    unsigned long current = millis();
+    if ((current - previousExecution) >= interval) {
+        Serial.print("Execution");
+        Serial.print(current);
+        vm->OneLifeCycle();
+        previousExecution = current;
+    }
 }
 
 void setupWifi() {
