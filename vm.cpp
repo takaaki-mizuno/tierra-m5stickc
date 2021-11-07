@@ -19,6 +19,28 @@ VM::~VM() {
     CleanEntities();
 }
 
+int VM::GetStatus(Status statusList[], int max) {
+    Entity *currentEntity = entities;
+    int index = 0;
+    while( currentEntity != NULL ){
+        statusList[index].index = index+1;
+        statusList[index].length = entities->size;
+        statusList[index].life_time = 0;
+
+        strncpy(statusList[index].hash, "161b6bc86389b8b1fe6e8390e9618c9d", 32);
+        statusList[index].hash[32] = 0;
+
+        currentEntity = entities->next;
+        index ++;
+        if( max >= index){
+            currentEntity = NULL;
+            break;
+        }
+    }
+
+    return index;
+}
+
 void VM::CreateID(long seed) {
     char buf[60];
     sprintf(buf, "creature%d", seed );

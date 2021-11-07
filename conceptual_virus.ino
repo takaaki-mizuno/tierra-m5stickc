@@ -2,13 +2,17 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include "vm.h"
+#include "client.h"
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
 
 // wifiの設定
-const char *ssid = ""; // WiFiのSSID
+const char *ssid = "SINGTEL-J796"; // WiFiのSSID
 const char *password = ""; // WiFiのパスワード
 
 WebServer server(80);
 VM* vm;
+DashboardClient* client;
 
 void setup() {
     M5.begin();
@@ -21,9 +25,10 @@ void setup() {
     long randNumber = random(100000000);
 
     vm = new VM(randNumber);
-
+    client = new DashboardClient(vm);
     setupWifi();
     setupHttpServer();
+    client->SendInfo();
 }
 
 void loop() {
@@ -59,7 +64,24 @@ void handleRoot() {
 }
 
 void handleStatus() {
-    server.send(200, "application/json", "{\"status\":\"ok\"}");
+    DynamicJsonDocument body(1024);
+
+    body["ip_address"] = WiFi.localIP();
+    body["identity_key"]   = 1351824120;
+    Status status[100];
+    int count = vm->GetStatus(status, 100);
+    for( int i = 0; i < count; i++ ){
+        body["status"][i]["index"] = status[i].index;
+        body["status"][i]["length"] = status[i].length;
+        body["status"][i]["life_time"] = status[i].life_time;
+        body["status"][i]["hash"] = status[i].hash;
+    }
+
+    char buffer[1024];
+    serializeJson(body, Serial);
+    serializeJson(body, buffer, sizeof(buffer));
+
+    server.send(200, "application/json", buffer);
 }
 
 void handleTransport() {

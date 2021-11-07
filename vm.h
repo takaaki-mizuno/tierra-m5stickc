@@ -7,6 +7,7 @@
 
 #include "process.h"
 #include "entity.h"
+#include "status.h"
 
 enum errorType {
     NO_ERROR = 0,
@@ -40,6 +41,7 @@ private:
 public:
     VM(long seed);
     ~VM();
+    int GetStatus(Status statusList[], int max);
     void CreateID(long seed);
     void CleanEntities();
     void CopyCreature(char *source, char *destination, int length);
