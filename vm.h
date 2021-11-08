@@ -8,6 +8,7 @@
 #include "process.h"
 #include "entity.h"
 #include "status.h"
+#include "config.h"
 
 enum errorType {
     NO_ERROR = 0,
@@ -29,9 +30,7 @@ enum directionType {
     FORWARD = 1
 };
 
-const int TEMPLATE_SEARCH_RANGE = 300;
 
-const int SOUP_SIZE = 10000;
 
 class VM {
 private:
@@ -52,8 +51,10 @@ public:
     void CopyCreature(char *source, char *destination, int length);
     Entity *GetEntity(int size);
     int AllocateMemory(int size);
+    int FindEmptySpace(int size, bool debug);
+    void DeleteEntity(Entity *entity);
     void OneLifeCycle();
-    int Execute(Entity *entry);
+    int Execute(Entity *entry, unsigned long startTime);
     void Push(int value);
     int Pop();
     bool MatchPattern(char *pattern, int position);

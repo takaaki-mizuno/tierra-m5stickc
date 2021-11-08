@@ -6,8 +6,8 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 
-// wifiの設定
-const char *ssid = "SINGTEL-J796"; // WiFiのSSID
+
+const char *ssid = ""; // WiFiのSSID
 const char *password = ""; // WiFiのパスワード
 
 WebServer server(80);
@@ -23,7 +23,7 @@ void setup() {
     M5.Axp.ScreenBreath(9);
     M5.Lcd.fillScreen(BLACK);
 
-    interval = 1000 * 60; // 1 mi
+    interval = 1000 * 60 * 1; // 1 mi
 
     Serial.begin(9600);
     randomSeed(analogRead(0));
@@ -34,6 +34,7 @@ void setup() {
     setupWifi();
     setupHttpServer();
     client->SendInfo();
+    vm->OneLifeCycle();
 }
 
 void loop() {
@@ -103,4 +104,3 @@ void handleTransport() {
 void handleNotFound() {
     server.send(404, "text/plain", "File Not Found\n\n");
 }
-
