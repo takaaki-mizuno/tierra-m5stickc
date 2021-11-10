@@ -20,6 +20,7 @@ VM::VM(long seed) {
         return;
     }
     crashed = false;
+    totalExecutedInstructions = 0;
     CopyCreature(ancestorData, soup + entities->startPoint, sizeof(ancestorData));
     CreateID(seed);
     Serial.print("ID: ");
@@ -95,7 +96,7 @@ int VM::FindEmptySpace(int size, bool debug) {
     int searchPosition = 0;
     while (searchPosition + size < soupSize) {
         if (soup[searchPosition] == 0) {
-            if( debug ) {
+            if (debug) {
                 Serial.print("Target\n");
                 Serial.print("\n");
             }
@@ -103,7 +104,7 @@ int VM::FindEmptySpace(int size, bool debug) {
             bool notEnough = false;
             for (int i = 0; i < size; i++) {
                 if (soup[searchPosition] != 0) {
-                    if( debug ) {
+                    if (debug) {
                         Serial.print("Not Target\n");
                         Serial.print(searchPosition);
                         Serial.print("\n");
@@ -113,7 +114,7 @@ int VM::FindEmptySpace(int size, bool debug) {
                     break;
                 }
                 searchPosition++;
-                if( debug ){
+                if (debug) {
                     Serial.print(searchPosition);
                     Serial.print("\n");
                 }
@@ -126,7 +127,7 @@ int VM::FindEmptySpace(int size, bool debug) {
             }
         } else {
             searchPosition++;
-            if( debug ){
+            if (debug) {
                 Serial.print(searchPosition);
                 Serial.print("\n");
             }
@@ -141,7 +142,9 @@ void VM::DeleteEntity(Entity *entity) {
         soup[currentPosition] = 0;
         currentPosition++;
     }
+    Serial.print("Clean up completed\n");
     delete entity;
+    Serial.print("Clean up completed2\n");
 }
 
 int VM::AllocateMemory(int size) {
@@ -158,10 +161,13 @@ int VM::AllocateMemory(int size) {
     while (entity != NULL) {
         long randNumber = random(1, 10);
         Entity *nextEntity = entity->next;
-        if( entity->startPoint == process.startPoint) {
+        if (entity->startPoint == process.startPoint) {
             Serial.print("Current Process\n");
-        }
-        if (entity->startPoint != process.startPoint && randNumber < PURGE_RATIO) {
+        } else if (entity->startPoint == process.previousStartPoint ) {
+            Serial.print("Previous Process\n");
+        } else if (entity->startPoint == process.nextStartPoint ) {
+            Serial.print("Next Process\n");
+        } else if ( randNumber < PURGE_RATIO) {
             count++;
             DeleteEntity(entity);
             if (previousEntity == NULL) {
@@ -169,7 +175,7 @@ int VM::AllocateMemory(int size) {
             } else {
                 previousEntity->next = nextEntity;
             }
-        }else{
+        } else {
             previousEntity = entity;
         }
         entity = nextEntity;
@@ -180,9 +186,22 @@ int VM::AllocateMemory(int size) {
 
 }
 
+void VM::IntroduceMutation(Entity *entry) {
+    long randNumber = random(entry->size);
+    int bit = (int) random(4);
+    Serial.print("mutation ");
+    int index = (int) randNumber + entry->startPoint;
+    char data = soup[index];
+    Serial.print((int) data, HEX);
+    soup[index] = data ^ ((1 << bit) & 0x1f);
+    Serial.print(" -> ");
+    Serial.print((int) soup[index], HEX);
+    Serial.print("\n");
+}
+
 void VM::OneLifeCycle() {
     if (crashed) {
-        Serial.print("Process has been crashed\n");
+        Serial.print("VM has been crashed\n");
         return;
     } else {
         Serial.print("Proceed\n");
@@ -192,26 +211,34 @@ void VM::OneLifeCycle() {
 
     unsigned long time = millis();
 
-    while (entity != NULL && entity->startTime < time) {
+    while (entity != NULL) {
         Entity *nextEntity = entity->next;
-        int error = Execute(entity, time);
-        if (error == COMPLETE) {
-            previousEntity = entity;
-            Serial.print("Process has been completed\n");
-        } else {
-            Serial.print("Process has been crashed\n");
-            DeleteEntity(entity);
-            if (previousEntity == NULL) {
-                entities = nextEntity;
+        if (entity->startTime < time) {
+            Serial.print("Start New Entity");
+            int error = Execute(entity, time, previousEntity, nextEntity);
+            if (error == COMPLETE) {
+                previousEntity = entity;
+                Serial.print("Process has been completed\n");
+                if (totalExecutedInstructions > MUTATION_RATIO) {
+                    IntroduceMutation(entity);
+                    totalExecutedInstructions = 0;
+                }
             } else {
-                previousEntity->next = nextEntity;
+                Serial.print("Process has been crashed\n");
+                DeleteEntity(entity);
+                Serial.print("Entity deleted\n");
+                if (previousEntity == NULL) {
+                    entities = nextEntity;
+                } else {
+                    previousEntity->next = nextEntity;
+                }
             }
         }
         entity = nextEntity;
     }
 }
 
-int VM::Execute(Entity *entry, unsigned long startTime) {
+int VM::Execute(Entity *entry, unsigned long startTime, Entity *previousEntry, Entity *nextEntry) {
     process.ax = 0;
     process.bx = 0;
     process.cx = 0;
@@ -225,7 +252,16 @@ int VM::Execute(Entity *entry, unsigned long startTime) {
     process.error = NO_ERROR;
     int position = process.startPoint;
     int process_step_count = 0;
-
+    if (previousEntry != NULL) {
+        process.previousStartPoint = previousEntry->startPoint;
+    } else {
+        process.previousStartPoint = -1;
+    }
+    if (nextEntry != NULL) {
+        process.nextStartPoint = nextEntry->startPoint;
+    } else {
+        process.nextStartPoint = -1;
+    }
     while (process.error == NO_ERROR) {
 
         int currentPosition = position;
@@ -250,20 +286,35 @@ int VM::Execute(Entity *entry, unsigned long startTime) {
         */
 
         position = ExecuteCommand(position);
+        totalExecutedInstructions++;
         if (position == currentPosition && process.error == NO_ERROR) {
             int command = (int) (soup[position]);
             Serial.print(command, HEX);
-            Serial.print(":Command not proceed");
+            Serial.print("<= Command not proceed\n");
             process.error = NOT_PROCEED;
         }
 
         process_step_count++;
         if (process_step_count > 5000) {
             process.error = TOO_MANY_STEP;
-            Serial.print("Too Many Step");
+            Serial.print("Too Many Step\n");
         }
 
     }
+
+    if (process.error != COMPLETE) {
+        Serial.print("Error:");
+        Serial.print(process.error);
+        Serial.print("\nPosition: ");
+        Serial.print(position);
+        Serial.print("\nCommand: ");
+        Serial.print((int) soup[position], HEX);
+        if (position > 0) {
+            Serial.print("\nPrev Command: ");
+            Serial.print((int) soup[position - 1], HEX);
+        }
+    }
+
     return process.error;
 }
 
@@ -475,7 +526,7 @@ int VM::Command_Jmp(int position) {
     char pattern[4];
     if (position + 4 >= soupSize) {
         process.error = EXECUTE_OVERFLOW;
-        return 0;
+        return position;
     }
     pattern[0] = soup[position + 1];
     pattern[1] = soup[position + 2];
@@ -484,7 +535,7 @@ int VM::Command_Jmp(int position) {
     int foundPosition = FindTemplate(pattern, position, NEAREST);
     if (foundPosition == -1) {
         process.error = JUMP_TARGET_NOT_FOUND;
-        return 0;
+        return position;
     }
 
     position = foundPosition;
@@ -495,7 +546,7 @@ int VM::Command_JmpB(int position) {
     char pattern[4];
     if (position + 4 >= soupSize) {
         process.error = EXECUTE_OVERFLOW;
-        return 0;
+        return position;
     }
     pattern[0] = soup[position + 1];
     pattern[1] = soup[position + 2];
@@ -504,7 +555,7 @@ int VM::Command_JmpB(int position) {
     int foundPosition = FindTemplate(pattern, position, BACKWARD);
     if (foundPosition == -1) {
         process.error = JUMP_TARGET_NOT_FOUND;
-        return 0;
+        return position;
     }
 
     position = foundPosition;
@@ -515,7 +566,7 @@ int VM::Command_Call(int position) {
     char pattern[4];
     if (position + 4 >= soupSize) {
         process.error = EXECUTE_OVERFLOW;
-        return 0;
+        return position;
     }
     pattern[0] = soup[position + 1];
     pattern[1] = soup[position + 2];
@@ -524,7 +575,7 @@ int VM::Command_Call(int position) {
     int foundPosition = FindTemplate(pattern, position, NEAREST);
     if (foundPosition == -1) {
         process.error = JUMP_TARGET_NOT_FOUND;
-        return 0;
+        return position;
     }
     Push(position + 1);
     position = foundPosition;
@@ -552,16 +603,16 @@ int VM::Command_Mov_IAB(int position) {
 
     if (process.ax < process.daughterStartPoint || process.ax >= process.daughterStartPoint + process.daughterSize) {
         process.error = COPY_OVER_FLOW;
-        return 0;
+        return position;
     }
     if (process.bx < process.startPoint ||
         process.bx >= process.startPoint + process.size) {
         process.error = COPY_OVER_FLOW;
-        return 0;
+        return position;
     }
     if (process.bx < 0 || process.ax < 0 || process.ax >= soupSize || process.bx >= soupSize) {
         process.error = COPY_OVER_FLOW;
-        return 0;
+        return position;
     }
     soup[process.ax] = soup[process.bx];
     return ++position;
@@ -571,7 +622,7 @@ int VM::Command_Adr_(directionType direction, int position) {
     char pattern[4];
     if (position + 4 >= soupSize) {
         process.error = EXECUTE_OVERFLOW;
-        return 0;
+        return position;
     }
     pattern[0] = soup[position + 1];
     pattern[1] = soup[position + 2];
@@ -619,7 +670,8 @@ int VM::Command_Mal(int position) {
 
 int VM::Command_Divide(int position) {
     // Create new entity
-    Entity *entity = new Entity(process.daughterStartPoint, process.daughterSize, soup + process.daughterStartPoint, process.startTime);
+    Entity *entity = new Entity(process.daughterStartPoint, process.daughterSize, soup + process.daughterStartPoint,
+                                process.startTime);
     Entity *currentEntity = entities;
     int index = 1;
     while (currentEntity->next != NULL) {

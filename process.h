@@ -19,6 +19,8 @@ struct _process {
     int size;
     int daughterStartPoint;
     int daughterSize;
+    int previousStartPoint;
+    int nextStartPoint;
     unsigned long startTime;
 };
 

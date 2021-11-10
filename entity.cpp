@@ -12,11 +12,16 @@ Entity::Entity(int startPoint, int size, char *entityPosition, unsigned long sta
     this->startTime = startTime;
 
     unsigned char *rawHash = MD5::make_hash(entityPosition, size);
-    hash = MD5::make_digest(rawHash, 16);
+    char *temp = MD5::make_digest(rawHash, 16);
+    for( int i=0; i<32; i++){
+        hash[i] = temp[i];
+    }
+    hash[32] = 0;
     free(rawHash);
+    free(temp);
 }
 
 Entity::~Entity() {
-    free(hash);
+    Serial.print("destructor called\n");
 }
 

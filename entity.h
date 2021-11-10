@@ -13,7 +13,7 @@ public:
     int startPoint;
     int size;
     Entity *next;
-    char *hash;
+    char hash[33];
     unsigned long startTime;
 };
 

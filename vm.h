@@ -41,6 +41,7 @@ private:
     Process process;
     char *id;
     bool crashed;
+    int totalExecutedInstructions;
 public:
     VM(long seed);
     ~VM();
@@ -54,7 +55,8 @@ public:
     int FindEmptySpace(int size, bool debug);
     void DeleteEntity(Entity *entity);
     void OneLifeCycle();
-    int Execute(Entity *entry, unsigned long startTime);
+    void IntroduceMutation(Entity *entry);
+    int Execute(Entity *entry, unsigned long startTime, Entity *previousEntry, Entity *nextEntry);
     void Push(int value);
     int Pop();
     bool MatchPattern(char *pattern, int position);
