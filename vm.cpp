@@ -13,19 +13,23 @@ VM::VM(long seed) {
     for (int i = 0; i < SOUP_SIZE; i++) {
         soup[i] = 0;
     }
+    for (int i = 0; i < ENTITY_MAX_COUNT; i++) {
+        entities[i].active = false;
+    }
     nextPosition = 0;
-    entities = GetEntity(sizeof(ancestorData));
-    if (entities == NULL) {
+    int index = GetEntity(sizeof(ancestorData));
+    if (index == -1) {
         crashed = true;
         return;
     }
     crashed = false;
     totalExecutedInstructions = 0;
-    CopyCreature(ancestorData, soup + entities->startPoint, sizeof(ancestorData));
+    CopyCreature(ancestorData, soup + entities[0].startPoint, sizeof(ancestorData));
     CreateID(seed);
     Serial.print("ID: ");
     Serial.print(id);
     Serial.print("\n");
+
 }
 
 VM::~VM() {
@@ -38,21 +42,19 @@ bool VM::isCrashed() {
 }
 
 int VM::GetStatus(Status statusList[], int max) {
-    Entity *currentEntity = entities;
     int index = 0;
-    while (currentEntity != NULL) {
-        statusList[index].index = index + 1;
-        statusList[index].length = entities->size;
-        statusList[index].life_time = 0;
+    for (int i = 0; i < ENTITY_MAX_COUNT; i++) {
+        if( entities[i].active){
+            statusList[index].index = index + 1;
+            statusList[index].length = entities[i].size;
+            statusList[index].life_time = 0;
 
-        strncpy(statusList[index].hash, entities->hash, 32);
-        statusList[index].hash[32] = 0;
-
-        currentEntity = entities->next;
-        index++;
-        if (max >= index) {
-            currentEntity = NULL;
-            break;
+            strncpy(statusList[index].hash, entities[i].hash, 32);
+            statusList[index].hash[32] = 0;
+            index++;
+            if( index >= max ){
+                return index;
+            }
         }
     }
 
@@ -68,11 +70,8 @@ void VM::CreateID(long seed) {
 }
 
 void VM::CleanEntities() {
-    Entity *entity = entities;
-    while (entity != NULL) {
-        Entity *nextEntity = entity->next;
-        delete entity;
-        entity = nextEntity;
+    for (int i = 0; i < ENTITY_MAX_COUNT; i++) {
+        entities[i].active = false;
     }
     free(id);
 }
@@ -83,13 +82,26 @@ void VM::CopyCreature(char *source, char *destination, int length) {
     }
 }
 
-Entity *VM::GetEntity(int size) {
+int VM::FindEntitySlot() {
+    for (int i = 0; i < ENTITY_MAX_COUNT; i++) {
+        if( entities[i].active == false){
+            return i;
+        }
+    }
+    return -1;
+}
+
+int VM::GetEntity(int size) {
     int allocatedPosition = AllocateMemory(size);
     if (allocatedPosition == -1) {
-        return NULL;
+        return -1;
     }
-    Entity *entity = new Entity(allocatedPosition, size, soup + allocatedPosition, 0);
-    return entity;
+    int index = FindEntitySlot();
+    if(index == -1 ){
+        return -1;
+    }
+    entities[index].SetValue(allocatedPosition, size, soup + allocatedPosition, 0);
+    return index;
 }
 
 int VM::FindEmptySpace(int size, bool debug) {
@@ -136,15 +148,13 @@ int VM::FindEmptySpace(int size, bool debug) {
     return -1;
 }
 
-void VM::DeleteEntity(Entity *entity) {
-    int currentPosition = entity->startPoint;
-    for (int i = 0; i < entity->size; i++) {
+void VM::DeleteEntity(int i) {
+    int currentPosition = entities[i].startPoint;
+    for (int i = 0; i < entities[i].size; i++) {
         soup[currentPosition] = 0;
         currentPosition++;
     }
-    Serial.print("Clean up completed\n");
-    delete entity;
-    Serial.print("Clean up completed2\n");
+    entities[i].active = false;
 }
 
 int VM::AllocateMemory(int size) {
@@ -156,46 +166,38 @@ int VM::AllocateMemory(int size) {
     // purge
     Serial.print("Purging... \n");
     int count = 0;
-    Entity *entity = entities;
-    Entity *previousEntity = NULL;
-    while (entity != NULL) {
-        long randNumber = random(1, 10);
-        Entity *nextEntity = entity->next;
-        if (entity->startPoint == process.startPoint) {
-            Serial.print("Current Process\n");
-        } else if (entity->startPoint == process.previousStartPoint ) {
-            Serial.print("Previous Process\n");
-        } else if (entity->startPoint == process.nextStartPoint ) {
-            Serial.print("Next Process\n");
-        } else if ( randNumber < PURGE_RATIO) {
-            count++;
-            DeleteEntity(entity);
-            if (previousEntity == NULL) {
-                entities = nextEntity;
-            } else {
-                previousEntity->next = nextEntity;
+    for (int i = 0; i < ENTITY_MAX_COUNT; i++) {
+        if( entities[i].active  ) {
+            long randNumber = random(1, 10);
+            if (entities[i].startPoint == process.startPoint) {
+                Serial.print("Current Process\n");
+            } else if (entities[i].startPoint == process.previousStartPoint) {
+                Serial.print("Previous Process\n");
+            } else if (entities[i].startPoint == process.nextStartPoint) {
+                Serial.print("Next Process\n");
+            } else if (randNumber < PURGE_RATIO) {
+                count++;
+                DeleteEntity(i);
             }
-        } else {
-            previousEntity = entity;
         }
-        entity = nextEntity;
     }
+
     Serial.print(count);
     Serial.print(" entities purged.\n\n");
     return FindEmptySpace(size, false);
 
 }
 
-void VM::IntroduceMutation(Entity *entry) {
-    long randNumber = random(entry->size);
+void VM::IntroduceMutation(int index) {
+    long randNumber = random(entities[index].size);
     int bit = (int) random(4);
     Serial.print("mutation ");
-    int index = (int) randNumber + entry->startPoint;
-    char data = soup[index];
+    int position = (int) randNumber + entities[index].startPoint;
+    char data = soup[position];
     Serial.print((int) data, HEX);
-    soup[index] = data ^ ((1 << bit) & 0x1f);
+    soup[position] = data ^ ((1 << bit) & 0x1f);
     Serial.print(" -> ");
-    Serial.print((int) soup[index], HEX);
+    Serial.print((int) soup[position], HEX);
     Serial.print("\n");
 }
 
@@ -206,45 +208,37 @@ void VM::OneLifeCycle() {
     } else {
         Serial.print("Proceed\n");
     }
-    Entity *entity = entities;
-    Entity *previousEntity = NULL;
 
     unsigned long time = millis();
 
-    while (entity != NULL) {
-        Entity *nextEntity = entity->next;
-        if (entity->startTime < time) {
-            Serial.print("Start New Entity");
-            int error = Execute(entity, time, previousEntity, nextEntity);
+    for (int i = 0; i < ENTITY_MAX_COUNT; i++) {
+        if (entities[i].active && entities[i].startTime < time) {
+            Serial.print("Start New Entity: ");
+            Serial.print(i);
+            Serial.print("\n");
+            int error = Execute(i, time);
             if (error == COMPLETE) {
-                previousEntity = entity;
                 Serial.print("Process has been completed\n");
                 if (totalExecutedInstructions > MUTATION_RATIO) {
-                    IntroduceMutation(entity);
+                    IntroduceMutation(i);
                     totalExecutedInstructions = 0;
                 }
             } else {
                 Serial.print("Process has been crashed\n");
-                DeleteEntity(entity);
+                DeleteEntity(i);
                 Serial.print("Entity deleted\n");
-                if (previousEntity == NULL) {
-                    entities = nextEntity;
-                } else {
-                    previousEntity->next = nextEntity;
-                }
             }
         }
-        entity = nextEntity;
     }
 }
 
-int VM::Execute(Entity *entry, unsigned long startTime, Entity *previousEntry, Entity *nextEntry) {
+int VM::Execute(int index, unsigned long startTime) {
     process.ax = 0;
     process.bx = 0;
     process.cx = 0;
     process.dx = 0;
-    process.startPoint = entry->startPoint;
-    process.size = entry->size;
+    process.startPoint = entities[index].startPoint;
+    process.size = entities[index].size;
     process.ip = process.startPoint;
     process.fl = 0;
     process.sp = 0;
@@ -252,16 +246,7 @@ int VM::Execute(Entity *entry, unsigned long startTime, Entity *previousEntry, E
     process.error = NO_ERROR;
     int position = process.startPoint;
     int process_step_count = 0;
-    if (previousEntry != NULL) {
-        process.previousStartPoint = previousEntry->startPoint;
-    } else {
-        process.previousStartPoint = -1;
-    }
-    if (nextEntry != NULL) {
-        process.nextStartPoint = nextEntry->startPoint;
-    } else {
-        process.nextStartPoint = -1;
-    }
+
     while (process.error == NO_ERROR) {
 
         int currentPosition = position;
@@ -670,19 +655,17 @@ int VM::Command_Mal(int position) {
 
 int VM::Command_Divide(int position) {
     // Create new entity
-    Entity *entity = new Entity(process.daughterStartPoint, process.daughterSize, soup + process.daughterStartPoint,
-                                process.startTime);
-    Entity *currentEntity = entities;
-    int index = 1;
-    while (currentEntity->next != NULL) {
-        currentEntity = currentEntity->next;
-        index++;
+    int index = FindEntitySlot();
+    if(index == -1 ){
+        process.error = ENTITY_ALLOCATION_ERROR;
+        return position;
     }
-    currentEntity->next = entity;
+    entities[index].SetValue(process.daughterStartPoint, process.daughterSize, soup + process.daughterStartPoint,
+                                process.startTime);
     Serial.print("=================================> New Entity: Index:");
     Serial.print(index + 1);
     Serial.print("  Hash:");
-    Serial.print(entity->hash);
+    Serial.print(entities[index].hash);
     Serial.print("\n");
 
     process.error = COMPLETE;

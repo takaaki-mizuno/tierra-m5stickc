@@ -21,6 +21,7 @@ enum errorType {
     UNKNOWN_CODE,
     NOT_PROCEED,
     TOO_MANY_STEP,
+    ENTITY_ALLOCATION_ERROR,
     COMPLETE
 };
 
@@ -35,7 +36,7 @@ enum directionType {
 class VM {
 private:
     char soup[SOUP_SIZE];
-    Entity *entities;
+    Entity entities[ENTITY_MAX_COUNT];
     int soupSize;
     int nextPosition;
     Process process;
@@ -50,13 +51,14 @@ public:
     void CreateID(long seed);
     void CleanEntities();
     void CopyCreature(char *source, char *destination, int length);
-    Entity *GetEntity(int size);
+    int FindEntitySlot();
+    int GetEntity(int size);
     int AllocateMemory(int size);
     int FindEmptySpace(int size, bool debug);
-    void DeleteEntity(Entity *entity);
+    void DeleteEntity(int i);
     void OneLifeCycle();
-    void IntroduceMutation(Entity *entry);
-    int Execute(Entity *entry, unsigned long startTime, Entity *previousEntry, Entity *nextEntry);
+    void IntroduceMutation(int index);
+    int Execute(int index, unsigned long startTime);
     void Push(int value);
     int Pop();
     bool MatchPattern(char *pattern, int position);

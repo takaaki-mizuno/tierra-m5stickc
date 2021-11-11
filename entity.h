@@ -8,13 +8,12 @@
 
 class Entity {
 public:
-    Entity(int startPoint, int size, char *entityPosition, unsigned long startTime);
-    ~Entity();
+    void SetValue(int startPoint, int size, char *entityPosition, unsigned long startTime);
     int startPoint;
     int size;
-    Entity *next;
     char hash[33];
     unsigned long startTime;
+    bool active;
 };
 
 #endif //CONCEPTUAL_VIRUS_ENTITY_H
