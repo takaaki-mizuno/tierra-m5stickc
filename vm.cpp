@@ -6,6 +6,9 @@
 #include "MD5.h"
 #include <M5StickC.h>
 #include "config.h"
+#include "Arduino.h"
+
+
 
 VM::VM(long seed) {
     process.startPoint = 0;
@@ -25,6 +28,7 @@ VM::VM(long seed) {
     crashed = false;
     totalExecutedInstructions = 0;
     CopyCreature(ancestorData, soup + entities[0].startPoint, sizeof(ancestorData));
+    entities[0].CalcHash();
     CreateID(seed);
     Serial.print("ID: ");
     Serial.print(id);
@@ -37,8 +41,31 @@ VM::~VM() {
     free(id);
 }
 
+void VM::Dump(int start, int size) {
+    for( int i=0; i<size; i++ ){
+        Serial.print((int)(soup[start+i]), HEX);
+    }
+    Serial.print("\n");
+}
+
 bool VM::isCrashed() {
     return crashed;
+}
+
+void VM::DumpSoup() {
+    Serial.print("====DUMP=====\n");
+    int count = 0;
+    for( int i; i<SOUP_SIZE; i++) {
+        Serial.print((int)(soup[i]), HEX);
+        count++;
+        if( count >= 80 ){
+            Serial.print("\n");
+            count = 0;
+        }else{
+            Serial.print(",");
+        }
+    }
+    Serial.print("\n====DUMP=====\n");
 }
 
 int VM::GetStatus(Status statusList[], int max) {
@@ -100,67 +127,50 @@ int VM::GetEntity(int size) {
     if(index == -1 ){
         return -1;
     }
-    entities[index].SetValue(allocatedPosition, size, soup + allocatedPosition, 0);
+    entities[index].SetValue(allocatedPosition, size, soup + allocatedPosition, 0, index);
+    Dump(allocatedPosition, size);
     return index;
 }
 
 int VM::FindEmptySpace(int size, bool debug) {
     int searchPosition = 0;
+    int targetPosition = 0;
+    int count = 0;
     while (searchPosition + size < soupSize) {
         if (soup[searchPosition] == 0) {
-            if (debug) {
-                Serial.print("Target\n");
-                Serial.print("\n");
+            if (count == 0) {
+                targetPosition = searchPosition;
             }
-            int targetPosition = searchPosition;
-            bool notEnough = false;
-            for (int i = 0; i < size; i++) {
-                if (soup[searchPosition] != 0) {
-                    if (debug) {
-                        Serial.print("Not Target\n");
-                        Serial.print(searchPosition);
-                        Serial.print("\n");
-                    }
-                    searchPosition++;
-                    notEnough = true;
-                    break;
-                }
-                searchPosition++;
-                if (debug) {
-                    Serial.print(searchPosition);
-                    Serial.print("\n");
-                }
-            }
-            if (!notEnough) {
-                Serial.print("Found Position: ");
-                Serial.print(targetPosition);
-                Serial.print("\n\n");
+            count++;
+            if (count == size) {
                 return targetPosition;
             }
-        } else {
-            searchPosition++;
-            if (debug) {
-                Serial.print(searchPosition);
-                Serial.print("\n");
-            }
+        }else {
+            count = 0;
         }
+        searchPosition++;
     }
     return -1;
 }
 
 void VM::DeleteEntity(int i) {
-    int currentPosition = entities[i].startPoint;
-    for (int i = 0; i < entities[i].size; i++) {
-        soup[currentPosition] = 0;
-        currentPosition++;
+
+    M5.Lcd.fillRect(entities[i].CalcX(), entities[i].CalcY(), 15, 2, BLACK);
+
+    for (int j = 0; j < entities[i].size; j++) {
+        soup[entities[i].startPoint + j] = 0;
     }
     entities[i].active = false;
 }
 
 int VM::AllocateMemory(int size) {
-    int position = FindEmptySpace(size, false);
-    if (position >= 0) {
-        return position;
+    Serial.print("Find memory size: ");
+    Serial.print(size);
+    Serial.print("\n");
+
+    int foundPosition = FindEmptySpace(size, false);
+    if (foundPosition >= 0) {
+        return foundPosition;
     }
 
     // purge
@@ -177,6 +187,13 @@ int VM::AllocateMemory(int size) {
                 Serial.print("Next Process\n");
             } else if (randNumber < PURGE_RATIO) {
                 count++;
+                Serial.print("Delete => ");
+                Serial.print(i);
+                Serial.print(" Start:");
+                Serial.print(entities[i].startPoint);
+                Serial.print(" Size:");
+                Serial.print(entities[i].size);
+                Serial.print("\n");
                 DeleteEntity(i);
             }
         }
@@ -184,20 +201,37 @@ int VM::AllocateMemory(int size) {
 
     Serial.print(count);
     Serial.print(" entities purged.\n\n");
-    return FindEmptySpace(size, false);
+    int result =  FindEmptySpace(size, false);
 
+//    if( result == -1 ) {
+        Serial.print("\n ===> SIZE ");
+        Serial.print(size);
+        Serial.print("\n");
+
+        DumpSoup();
+//    }
+
+    return result;
 }
 
 void VM::IntroduceMutation(int index) {
     long randNumber = random(entities[index].size);
     int bit = (int) random(4);
-    Serial.print("mutation ");
+    Serial.print("mutation -- [index] ");
     int position = (int) randNumber + entities[index].startPoint;
     char data = soup[position];
+    Serial.print(index);
+    Serial.print(" -- [position] ");
+    Serial.print(position);
+    Serial.print(" -- [data] ");
     Serial.print((int) data, HEX);
     soup[position] = data ^ ((1 << bit) & 0x1f);
     Serial.print(" -> ");
     Serial.print((int) soup[position], HEX);
+    Serial.print("\n");
+    entities[index].CalcHash();
+    Serial.print("New Hash : ");
+    Serial.print(entities[index].hash);
     Serial.print("\n");
 }
 
@@ -210,18 +244,26 @@ void VM::OneLifeCycle() {
     }
 
     unsigned long time = millis();
-
+    bool debug = false;
     for (int i = 0; i < ENTITY_MAX_COUNT; i++) {
         if (entities[i].active && entities[i].startTime < time) {
             Serial.print("Start New Entity: ");
             Serial.print(i);
             Serial.print("\n");
-            int error = Execute(i, time);
+            int error = Execute(i, time, debug);
             if (error == COMPLETE) {
                 Serial.print("Process has been completed\n");
                 if (totalExecutedInstructions > MUTATION_RATIO) {
                     IntroduceMutation(i);
                     totalExecutedInstructions = 0;
+                    //debug = true;
+                }
+            } else if( error == CAN_NOT_MEMORY_ALLOCATION ){
+                Serial.print("Memory allocation error\n");
+                if (totalExecutedInstructions > MUTATION_RATIO) {
+                    IntroduceMutation(i);
+                    totalExecutedInstructions = 0;
+                    //debug = true;
                 }
             } else {
                 Serial.print("Process has been crashed\n");
@@ -232,7 +274,7 @@ void VM::OneLifeCycle() {
     }
 }
 
-int VM::Execute(int index, unsigned long startTime) {
+int VM::Execute(int index, unsigned long startTime, bool debug) {
     process.ax = 0;
     process.bx = 0;
     process.cx = 0;
@@ -242,33 +284,45 @@ int VM::Execute(int index, unsigned long startTime) {
     process.ip = process.startPoint;
     process.fl = 0;
     process.sp = 0;
+    for( int i=0; i<10; i++){
+        process.stack[i] = 0;
+    }
     process.startTime = startTime;
     process.error = NO_ERROR;
     int position = process.startPoint;
     int process_step_count = 0;
+
+    Serial.print("Start Execute Entity index:");
+    Serial.print(index);
+    Serial.print("  Start: ");
+    Serial.print(entities[index].startPoint);
+    Serial.print("  Hash =========************** >");
+    Serial.print(entities[index].hash);
+    Serial.print("\n");
+    Dump(process.startPoint, process.size);
+    Serial.print("---------------");
 
     while (process.error == NO_ERROR) {
 
         int currentPosition = position;
         int currentCommand = (int) (soup[position]);
 
-        /*
-        Serial.print("Debug: ----------\n");
-        Serial.print("AX: ");
-        Serial.print(process.ax);
-        Serial.print(" BX: ");
-        Serial.print(process.bx);
-        Serial.print(" CX: ");
-        Serial.print(process.cx);
-        Serial.print(" DX: ");
-        Serial.print(process.dx);
-        Serial.print(" Step:");
-        Serial.print(currentPosition);
+        if( debug ) {
+            Serial.print("AX: ");
+            Serial.print(process.ax);
+            Serial.print(" BX: ");
+            Serial.print(process.bx);
+            Serial.print(" CX: ");
+            Serial.print(process.cx);
+            Serial.print(" DX: ");
+            Serial.print(process.dx);
+            Serial.print(" Step:");
+            Serial.print(currentPosition);
 
-        Serial.print(" Command:");
-        Serial.print(currentCommand, HEX);
-        Serial.print("\n");
-        */
+            Serial.print(" Command:");
+            Serial.print(currentCommand, HEX);
+            Serial.print("\n");
+        }
 
         position = ExecuteCommand(position);
         totalExecutedInstructions++;
@@ -372,6 +426,7 @@ int VM::FindTemplate(char *originalPattern, int position, directionType directio
     }
     if (direction == FORWARD || direction == NEAREST) {
         currentPosition = position;
+        count = 0;
         while (1) {
             if (soup[currentPosition] != 0x00 && soup[currentPosition] != 0x01) {
                 currentPosition++;
@@ -379,6 +434,13 @@ int VM::FindTemplate(char *originalPattern, int position, directionType directio
             } else {
                 if (MatchPattern(pattern, currentPosition)) {
                     if (direction == NEAREST && foundCount >= 0) {
+                        /*
+                        Serial.print("== Found Both Back: ");
+                        Serial.print(foundCount);
+                        Serial.print("  Forward: ");
+                        Serial.print(count);
+                        Serial.print("\n");
+                         */
                         if (count < foundCount) {
                             foundPosition = currentPosition;
                             foundCount = count;
@@ -468,41 +530,49 @@ int VM::Command_Inc_C(int position) {
 }
 
 int VM::Command_Push_Ax(int position) {
+//    Serial.print("Push AX\n");
     Push(process.ax);
     return ++position;
 }
 
 int VM::Command_Push_Bx(int position) {
+//    Serial.print("Push BX\n");
     Push(process.bx);
     return ++position;
 }
 
 int VM::Command_Push_Cx(int position) {
+//    Serial.print("Push CX\n");
     Push(process.cx);
     return ++position;
 }
 
 int VM::Command_Push_Dx(int position) {
+//    Serial.print("Push DX\n");
     Push(process.dx);
     return ++position;
 }
 
 int VM::Command_Pop_Ax(int position) {
+//    Serial.print("Pop AX\n");
     process.ax = Pop();
     return ++position;
 }
 
 int VM::Command_Pop_Bx(int position) {
+//    Serial.print("Pop BX\n");
     process.bx = Pop();
     return ++position;
 }
 
 int VM::Command_Pop_Cx(int position) {
+//    Serial.print("Pop CX\n");
     process.cx = Pop();
     return ++position;
 }
 
 int VM::Command_Pop_Dx(int position) {
+//    Serial.print("Pop DX\n");
     process.dx = Pop();
     return ++position;
 }
@@ -587,16 +657,16 @@ int VM::Command_Mov_AB(int position) {
 int VM::Command_Mov_IAB(int position) {
 
     if (process.ax < process.daughterStartPoint || process.ax >= process.daughterStartPoint + process.daughterSize) {
-        process.error = COPY_OVER_FLOW;
+        process.error = COPY_OVER_FLOW_DAUGHTER;
         return position;
     }
     if (process.bx < process.startPoint ||
         process.bx >= process.startPoint + process.size) {
-        process.error = COPY_OVER_FLOW;
+        process.error = COPY_OVER_FLOW_MOTHER;
         return position;
     }
     if (process.bx < 0 || process.ax < 0 || process.ax >= soupSize || process.bx >= soupSize) {
-        process.error = COPY_OVER_FLOW;
+        process.error = COPY_OVER_FLOW_SOUP;
         return position;
     }
     soup[process.ax] = soup[process.bx];
@@ -636,13 +706,24 @@ int VM::Command_AdrF(int position) {
 
 // 	allocate memory, cx=size, return address in ax
 int VM::Command_Mal(int position) {
+    Serial.print("Allocate daughter memory( Before )");
+    Serial.print(" Command Pos:");
+    Serial.print(position);
+    Serial.print("  Position:");
+    Serial.print(process.ax);
+    Serial.print("\nsize:");
+    Serial.print(process.cx);
+    Serial.print("\n");
+
     process.ax = AllocateMemory(process.cx);
     if (process.ax == -1) {
         process.error = CAN_NOT_MEMORY_ALLOCATION;
         return ++position;
     }
     Serial.print("Allocate daughter memory");
-    Serial.print("Position:");
+    Serial.print(" Command Pos:");
+    Serial.print(position);
+    Serial.print("  Position:");
     Serial.print(process.ax);
     Serial.print("\nsize:");
     Serial.print(process.cx);
@@ -661,7 +742,8 @@ int VM::Command_Divide(int position) {
         return position;
     }
     entities[index].SetValue(process.daughterStartPoint, process.daughterSize, soup + process.daughterStartPoint,
-                                process.startTime);
+                                process.startTime, index);
+    Dump(process.daughterStartPoint, process.daughterSize);
     Serial.print("=================================> New Entity: Index:");
     Serial.print(index + 1);
     Serial.print("  Hash:");

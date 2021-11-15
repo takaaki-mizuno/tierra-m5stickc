@@ -9,6 +9,7 @@
 #include "entity.h"
 #include "status.h"
 #include "config.h"
+#include "Arduino.h"
 
 enum errorType {
     NO_ERROR = 0,
@@ -16,7 +17,9 @@ enum errorType {
     STACK_UNDER_FLOW,
     EXECUTE_OVERFLOW,
     JUMP_TARGET_NOT_FOUND,
-    COPY_OVER_FLOW,
+    COPY_OVER_FLOW_MOTHER,
+    COPY_OVER_FLOW_DAUGHTER,
+    COPY_OVER_FLOW_SOUP,
     CAN_NOT_MEMORY_ALLOCATION,
     UNKNOWN_CODE,
     NOT_PROCEED,
@@ -46,7 +49,9 @@ private:
 public:
     VM(long seed);
     ~VM();
+    void Dump(int start, int size);
     bool isCrashed();
+    void DumpSoup();
     int GetStatus(Status statusList[], int max);
     void CreateID(long seed);
     void CleanEntities();
@@ -58,7 +63,7 @@ public:
     void DeleteEntity(int i);
     void OneLifeCycle();
     void IntroduceMutation(int index);
-    int Execute(int index, unsigned long startTime);
+    int Execute(int index, unsigned long startTime, bool debug);
     void Push(int value);
     int Pop();
     bool MatchPattern(char *pattern, int position);
