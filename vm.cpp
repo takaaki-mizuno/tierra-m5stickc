@@ -155,8 +155,7 @@ int VM::FindEmptySpace(int size, bool debug) {
 
 void VM::DeleteEntity(int i) {
 
-    M5.Lcd.fillRect(entities[i].CalcX(), entities[i].CalcY(), 15, 2, BLACK);
-
+    entities[i].DrawOnScreen(true);
     for (int j = 0; j < entities[i].size; j++) {
         soup[entities[i].startPoint + j] = 0;
     }
@@ -208,11 +207,11 @@ int VM::AllocateMemory(int size) {
         Serial.print(size);
         Serial.print("\n");
 
-        DumpSoup();
+//        DumpSoup();
 //    }
 
-    return result;
-}
+        return result;
+    }
 
 void VM::IntroduceMutation(int index) {
     long randNumber = random(entities[index].size);

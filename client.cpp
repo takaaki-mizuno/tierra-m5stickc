@@ -8,7 +8,7 @@
 #include <HTTPClient.h>
 #include <WiFi.h>
 
-const char *updateUrl = "http://192.168.1.16:8010/api/creatures/status";
+const char *updateUrl = "http://10.202.167.127:8100/api/creatures/status";
 
 DashboardClient::DashboardClient(VM *_vm) {
     vm = _vm;

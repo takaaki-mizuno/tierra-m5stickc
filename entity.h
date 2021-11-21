@@ -15,7 +15,9 @@ public:
     void CalcHash();
     int CalcX();
     int CalcY();
+    int CalcWidth();
     uint16_t CalcColor();
+    void DrawOnScreen(bool isDelete);
     int startPoint;
     char *entityPosition;
     int size;

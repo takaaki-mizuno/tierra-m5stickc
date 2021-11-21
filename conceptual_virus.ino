@@ -6,6 +6,7 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 
+// wifiの設定
 
 //const char *ssid = ""; // WiFiのSSID
 //const char *password = ""; // WiFiのパスワード
