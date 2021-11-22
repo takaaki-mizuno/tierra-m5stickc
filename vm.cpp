@@ -68,6 +68,10 @@ void VM::DumpSoup() {
     Serial.print("\n====DUMP=====\n");
 }
 
+char* VM::GetID() {
+    return id;
+}
+
 int VM::GetStatus(Status statusList[], int max) {
     int index = 0;
     for (int i = 0; i < ENTITY_MAX_COUNT; i++) {

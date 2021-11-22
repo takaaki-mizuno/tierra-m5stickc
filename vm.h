@@ -52,6 +52,7 @@ public:
     void Dump(int start, int size);
     bool isCrashed();
     void DumpSoup();
+    char* GetID();
     int GetStatus(Status statusList[], int max);
     void CreateID(long seed);
     void CleanEntities();

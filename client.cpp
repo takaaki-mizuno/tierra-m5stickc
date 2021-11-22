@@ -22,7 +22,7 @@ void DashboardClient::SendInfo() {
     DynamicJsonDocument body(1024);
 
     body["ip_address"] = WiFi.localIP();
-    body["identity_key"]   = 1351824120;
+    body["identity_key"]   = vm->GetID();
     Status status[100];
     int count = vm->GetStatus(status, 100);
     for( int i = 0; i < count; i++ ){

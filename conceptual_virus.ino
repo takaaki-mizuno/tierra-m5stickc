@@ -11,6 +11,7 @@
 //const char *ssid = ""; // WiFiのSSID
 //const char *password = ""; // WiFiのパスワード
 
+
 WebServer server(80);
 VM* vm;
 DashboardClient* client;
@@ -30,10 +31,11 @@ void setup() {
     randomSeed(analogRead(0));
     long randNumber = random(100000000);
 
-    vm = new VM(randNumber);
-    client = new DashboardClient(vm);
     setupWifi();
     setupHttpServer();
+
+    vm = new VM(randNumber);
+    client = new DashboardClient(vm);
     client->SendInfo();
     vm->OneLifeCycle();
 }
