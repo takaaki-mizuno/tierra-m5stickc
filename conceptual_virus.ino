@@ -45,6 +45,7 @@ void loop() {
         Serial.print("Execution");
         Serial.print(current);
         vm->OneLifeCycle();
+        client->SendInfo();
         previousExecution = current;
     }
 }

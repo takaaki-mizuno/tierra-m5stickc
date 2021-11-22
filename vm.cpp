@@ -214,12 +214,19 @@ int VM::AllocateMemory(int size) {
     }
 
 void VM::IntroduceMutation(int index) {
-    long randNumber = random(entities[index].size);
+
+    long index_number = random(ENTITY_MAX_COUNT);
+    if( !entities[index_number].active){
+        Serial.print("mutation -- No index found ");
+        return;
+    }
+
+    long randNumber = random(entities[index_number].size);
     int bit = (int) random(4);
     Serial.print("mutation -- [index] ");
-    int position = (int) randNumber + entities[index].startPoint;
+    int position = (int) randNumber + entities[index_number].startPoint;
     char data = soup[position];
-    Serial.print(index);
+    Serial.print(index_number);
     Serial.print(" -- [position] ");
     Serial.print(position);
     Serial.print(" -- [data] ");
@@ -228,9 +235,9 @@ void VM::IntroduceMutation(int index) {
     Serial.print(" -> ");
     Serial.print((int) soup[position], HEX);
     Serial.print("\n");
-    entities[index].CalcHash();
+    entities[index_number].CalcHash();
     Serial.print("New Hash : ");
-    Serial.print(entities[index].hash);
+    Serial.print(entities[index_number].hash);
     Serial.print("\n");
 }
 
