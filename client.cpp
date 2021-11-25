@@ -30,7 +30,6 @@ void DashboardClient::BuildJson(char *position, int size) {
                      WiFi.localIP()[3],
                      vm->GetID());
 
-    Serial.print("Build\n");
     if (n < 0) {
         position[size - 1] = '\0';
         return;

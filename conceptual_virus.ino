@@ -72,6 +72,7 @@ void setupHttpServer() {
     server.on("/", handleRoot);
     server.on("/status", handleStatus);
     server.on("/transport", handleTransport);
+    server.on("/dump", handleDump);
     server.onNotFound(handleNotFound);
     server.begin();
 }
@@ -81,28 +82,23 @@ void handleRoot() {
 }
 
 void handleStatus() {
-    DynamicJsonDocument body(1024);
-
-    body["ip_address"] = WiFi.localIP();
-    body["identity_key"]   = 1351824120;
-    Status status[100];
-    int count = vm->GetStatus(status, 100);
-    for( int i = 0; i < count; i++ ){
-        body["status"][i]["index"] = status[i].index;
-        body["status"][i]["length"] = status[i].length;
-        body["status"][i]["life_time"] = status[i].life_time;
-        body["status"][i]["hash"] = status[i].hash;
-    }
-
-    char buffer[1024];
-    serializeJson(body, Serial);
-    serializeJson(body, buffer, sizeof(buffer));
-
+    char *buffer = client->GetStatusJSON();
     server.send(200, "application/json", buffer);
 }
 
 void handleTransport() {
     server.send(200, "application/json", "{\"status\":\"ok\"}");
+}
+
+void handleDump() {
+    if(!server.hasArg("index")){
+        server.send(400, "application/json", "{\"status\":\"no index\"}");
+        return;
+    }
+    int index = server.arg("index").toInt();
+    char *dump = vm->DumpToChar(index);
+    server.send(200, "application/json", dump);
+    return;
 }
 
 void handleNotFound() {

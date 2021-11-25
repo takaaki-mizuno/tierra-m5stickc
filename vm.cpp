@@ -9,7 +9,7 @@
 #include "Arduino.h"
 
 
-char buffer[1000];
+char vBuffer[1000];
 
 VM::VM(long seed) {
     process.startPoint = 0;
@@ -50,26 +50,26 @@ void VM::Dump(int start, int size) {
 
 
 char *VM::DumpToChar(int index) {
-    buffer[0] = '"';
-    buffer[1] = '"';
-    buffer[2] = '\0';
+    vBuffer[0] = '"';
+    vBuffer[1] = '"';
+    vBuffer[2] = '\0';
     if( index >= ENTITY_MAX_COUNT ){
-        return buffer;
+        return vBuffer;
     }
     if( !entities[index].active ){
-        return buffer;
+        return vBuffer;
     }
     if( entities[index].size > 400 ){
-        return buffer;
+        return vBuffer;
     }
-    char *currentPosition = buffer + 1;
+    char *currentPosition = vBuffer + 1;
     for( int i=0; i<entities[index].size; i++ ){
         int n = snprintf(currentPosition, 2, "%02x", (int)(soup[entities[index].startPoint + i]));
         currentPosition+=2;
     }
     *currentPosition++ = '"';
     *currentPosition = '\0';
-    return buffer;
+    return vBuffer;
 }
 
 bool VM::isCrashed() {
