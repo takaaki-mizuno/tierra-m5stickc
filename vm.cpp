@@ -9,6 +9,7 @@
 #include "Arduino.h"
 
 
+char buffer[1000];
 
 VM::VM(long seed) {
     process.startPoint = 0;
@@ -28,12 +29,11 @@ VM::VM(long seed) {
     crashed = false;
     totalExecutedInstructions = 0;
     CopyCreature(ancestorData, soup + entities[0].startPoint, sizeof(ancestorData));
-    entities[0].CalcHash();
+    entities[index].CalcHash();
     CreateID(seed);
     Serial.print("ID: ");
     Serial.print(id);
     Serial.print("\n");
-
 }
 
 VM::~VM() {
@@ -46,6 +46,30 @@ void VM::Dump(int start, int size) {
         Serial.print((int)(soup[start+i]), HEX);
     }
     Serial.print("\n");
+}
+
+
+char *VM::DumpToChar(int index) {
+    buffer[0] = '"';
+    buffer[1] = '"';
+    buffer[2] = '\0';
+    if( index >= ENTITY_MAX_COUNT ){
+        return buffer;
+    }
+    if( !entities[index].active ){
+        return buffer;
+    }
+    if( entities[index].size > 400 ){
+        return buffer;
+    }
+    char *currentPosition = buffer + 1;
+    for( int i=0; i<entities[index].size; i++ ){
+        int n = snprintf(currentPosition, 2, "%02x", (int)(soup[entities[index].startPoint + i]));
+        currentPosition+=2;
+    }
+    *currentPosition++ = '"';
+    *currentPosition = '\0';
+    return buffer;
 }
 
 bool VM::isCrashed() {
@@ -76,7 +100,7 @@ int VM::GetStatus(Status statusList[], int max) {
     int index = 0;
     for (int i = 0; i < ENTITY_MAX_COUNT; i++) {
         if( entities[i].active){
-            statusList[index].index = index + 1;
+            statusList[index].index = i;
             statusList[index].length = entities[i].size;
             statusList[index].life_time = 0;
 
@@ -132,7 +156,7 @@ int VM::GetEntity(int size) {
         return -1;
     }
     entities[index].SetValue(allocatedPosition, size, soup + allocatedPosition, 0, index);
-    Dump(allocatedPosition, size);
+//    Dump(allocatedPosition, size);
     return index;
 }
 
@@ -177,6 +201,7 @@ int VM::AllocateMemory(int size) {
     }
 
     // purge
+//    DumpSoup();
     Serial.print("Purging... \n");
     int count = 0;
     for (int i = 0; i < ENTITY_MAX_COUNT; i++) {
@@ -225,7 +250,7 @@ void VM::IntroduceMutation(int index) {
         return;
     }
 
-    long randNumber = random(entities[index_number].size);
+    long randNumber = random(entities[index_number].size-1);
     int bit = (int) random(4);
     Serial.print("mutation -- [index] ");
     int position = (int) randNumber + entities[index_number].startPoint;
@@ -255,6 +280,7 @@ void VM::OneLifeCycle() {
 
     unsigned long time = millis();
     bool debug = false;
+    int completeCount = 0;
     for (int i = 0; i < ENTITY_MAX_COUNT; i++) {
         if (entities[i].active && entities[i].startTime < time) {
             Serial.print("Start New Entity: ");
@@ -262,6 +288,7 @@ void VM::OneLifeCycle() {
             Serial.print("\n");
             int error = Execute(i, time, debug);
             if (error == COMPLETE) {
+                completeCount++;
                 Serial.print("Process has been completed\n");
                 if (totalExecutedInstructions > MUTATION_RATIO) {
                     IntroduceMutation(i);
@@ -270,16 +297,25 @@ void VM::OneLifeCycle() {
                 }
             } else if( error == CAN_NOT_MEMORY_ALLOCATION ){
                 Serial.print("Memory allocation error\n");
-                if (totalExecutedInstructions > MUTATION_RATIO) {
-                    IntroduceMutation(i);
-                    totalExecutedInstructions = 0;
-                    //debug = true;
-                }
             } else {
                 Serial.print("Process has been crashed\n");
-                DeleteEntity(i);
-                Serial.print("Entity deleted\n");
+//                DeleteEntity(i);
+//                Serial.print("Entity deleted\n");
             }
+        }
+        if (totalExecutedInstructions > MUTATION_RATIO) {
+            IntroduceMutation(i);
+            totalExecutedInstructions = 0;
+        }
+    }
+    if( completeCount == 0 ){
+        int index = GetEntity(sizeof(ancestorData));
+        if( index >= 0 ){
+            CopyCreature(ancestorData, soup + entities[index].startPoint, sizeof(ancestorData));
+            entities[0].CalcHash();
+            Serial.print("No Executable and Allocate new ancestor.\n");
+        }else{
+            Serial.print("No Executable and No Allocation\n");
         }
     }
 }
@@ -663,20 +699,29 @@ int VM::Command_Mov_AB(int position) {
     return ++position;
 }
 
+void VM::CleanUpDaughter() {
+    for( int i = 0; i < process.daughterSize; i++ ){
+        soup[process.daughterStartPoint + i] = 0;
+    }
+}
+
 // move instruction at [bx] to [ax], [ax]=[bx]
 int VM::Command_Mov_IAB(int position) {
 
     if (process.ax < process.daughterStartPoint || process.ax >= process.daughterStartPoint + process.daughterSize) {
         process.error = COPY_OVER_FLOW_DAUGHTER;
+        CleanUpDaughter();
         return position;
     }
     if (process.bx < process.startPoint ||
         process.bx >= process.startPoint + process.size) {
         process.error = COPY_OVER_FLOW_MOTHER;
+        CleanUpDaughter();
         return position;
     }
     if (process.bx < 0 || process.ax < 0 || process.ax >= soupSize || process.bx >= soupSize) {
         process.error = COPY_OVER_FLOW_SOUP;
+        CleanUpDaughter();
         return position;
     }
     soup[process.ax] = soup[process.bx];

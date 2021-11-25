@@ -50,6 +50,7 @@ public:
     VM(long seed);
     ~VM();
     void Dump(int start, int size);
+    char* DumpToChar(int index);
     bool isCrashed();
     void DumpSoup();
     char* GetID();
@@ -94,6 +95,7 @@ public:
     int Command_Ret(int position);
     int Command_Mov_CD(int position);
     int Command_Mov_AB(int position);
+    void CleanUpDaughter();
     int Command_Mov_IAB(int position);
     int Command_Adr_(directionType direction, int position);
     int Command_Adr(int position);

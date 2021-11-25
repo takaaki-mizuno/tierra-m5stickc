@@ -14,6 +14,8 @@ class DashboardClient {
         DashboardClient(VM *_vm);
         ~DashboardClient();
         void SendInfo();
+        void BuildJson(char *position, int size);
+        char* GetStatusJSON();
 };
 
 #endif //CONCEPTUAL_VIRUS_CLIENT_H
