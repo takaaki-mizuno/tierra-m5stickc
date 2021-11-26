@@ -9,7 +9,7 @@
 #include <HTTPClient.h>
 #include <WiFi.h>
 
-const char *updateUrl = "http://10.202.167.127:8100/api/creatures/status";
+const char *updateUrl = "http://10.101.20.120:8100/api/creatures/status";
 
 char buffer[6500];
 

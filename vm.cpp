@@ -52,7 +52,7 @@ void VM::Dump(int start, int size) {
 char *VM::DumpToChar(int index) {
     vBuffer[0] = '"';
     vBuffer[1] = '"';
-    vBuffer[2] = '\0';
+    vBuffer[2] = 0;
     if( index >= ENTITY_MAX_COUNT ){
         return vBuffer;
     }
@@ -64,11 +64,11 @@ char *VM::DumpToChar(int index) {
     }
     char *currentPosition = vBuffer + 1;
     for( int i=0; i<entities[index].size; i++ ){
-        int n = snprintf(currentPosition, 2, "%02x", (int)(soup[entities[index].startPoint + i]));
+        int n = snprintf(currentPosition, 3, "%02x", (int)(soup[entities[index].startPoint + i]));
         currentPosition+=2;
     }
     *currentPosition++ = '"';
-    *currentPosition = '\0';
+    *currentPosition = 0;
     return vBuffer;
 }
 
