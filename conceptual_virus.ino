@@ -1,10 +1,14 @@
 #include <M5StickC.h>
 #include <WiFi.h>
-#include <WebServer.h>
+//#include <WebServer.h>
 #include "vm.h"
 #include "client.h"
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include <Arduino.h>
+
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
 
 // wifiの設定
 
@@ -12,7 +16,7 @@
 //const char *password = ""; // WiFiのパスワード
 
 
-WebServer server(80);
+AsyncWebServer server(80);
 VM* vm;
 DashboardClient* client;
 
@@ -41,7 +45,7 @@ void setup() {
 }
 
 void loop() {
-    server.handleClient();
+//    server.handleClient();
     unsigned long current = millis();
     if ((current - previousExecution) >= interval) {
         Serial.print("Execution");
@@ -69,14 +73,41 @@ void setupWifi() {
 }
 
 void setupHttpServer() {
-    server.on("/", handleRoot);
-    server.on("/status", handleStatus);
-    server.on("/transport", handleTransport);
-    server.on("/dump", handleDump);
-    server.onNotFound(handleNotFound);
+    server.on("/", [](AsyncWebServerRequest *request){
+        request->send(200, "application/json", "{\"status\":\"ok\"}");
+    });
+    server.on("/status", [](AsyncWebServerRequest *request){
+        char *buffer = client->GetStatusJSON();
+        request->send(200, "application/json", buffer);
+    });
+    server.on("/transport", [](AsyncWebServerRequest *request){
+        request->send(200, "application/json", "{\"status\":\"ok\"}");
+    });
+    server.on("/dump", [](AsyncWebServerRequest *request){
+        int paramsNr = request->params();
+        if( paramsNr == 0 ){
+            request->send(400, "application/json", "{\"status\":\"no index\"}");
+            return;
+        }
+        AsyncWebParameter* p = request->getParam(0);
+        String indexString = p->value();
+        const char* code = indexString.c_str();
+        if( *code < '0' || *code > '9' ){
+            request->send(400, "application/json", "{\"status\":\"index should be number\"}");
+            return;
+        }
+        int index = indexString.toInt();
+        char *dump = vm->DumpToChar(index);
+        request->send(200, "application/json", dump);
+        return;
+    });
+    server.onNotFound([](AsyncWebServerRequest *request){
+        request->send(404);
+    });
     server.begin();
 }
 
+/*
 void handleRoot() {
     server.send(200, "application/json", "{\"status\":\"ok\"}");
 }
@@ -90,17 +121,11 @@ void handleTransport() {
     server.send(200, "application/json", "{\"status\":\"ok\"}");
 }
 
-void handleDump() {
-    if(!server.hasArg("index")){
-        server.send(400, "application/json", "{\"status\":\"no index\"}");
-        return;
-    }
-    int index = server.arg("index").toInt();
-    char *dump = vm->DumpToChar(index);
-    server.send(200, "application/json", dump);
-    return;
+void handleDump(AsyncWebServerRequest *request) {
+
 }
 
 void handleNotFound() {
     server.send(404, "text/plain", "File Not Found\n\n");
 }
+*/
